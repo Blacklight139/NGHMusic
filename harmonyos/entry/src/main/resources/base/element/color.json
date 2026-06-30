@@ -1,0 +1,13 @@
+// 职责：HarmonyOS 颜色资源（与桌面端配色对齐）。
+{
+  "color": [
+    { "name": "start_window_background", "value": "#FFFFFF" },
+    { "name": "primary", "value": "#1DB954" },
+    { "name": "primary_dark", "value": "#169C46" },
+    { "name": "bg", "value": "#FFFFFF" },
+    { "name": "bg_alt", "value": "#F5F5F5" },
+    { "name": "text_primary", "value": "#333333" },
+    { "name": "text_muted", "value": "#6B6B6B" },
+    { "name": "border", "value": "#E2E2E2" }
+  ]
+}

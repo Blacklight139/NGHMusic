@@ -1,0 +1,11 @@
+// 职责：HarmonyOS 工程级 oh-package 配置（OpenHarmony 包管理）。
+// 说明：依赖通过 entry/oh-package.json5 声明；此处仅声明工程元信息。
+
+{
+  "modelVersion": "5.0.0",
+  "description": "跨平台音乐播放器 HarmonyOS ArkUI 工程",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.6"
+  }
+}

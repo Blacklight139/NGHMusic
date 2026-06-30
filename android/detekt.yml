@@ -1,0 +1,88 @@
+# Detekt 配置（Android / Kotlin）。
+# 文档：https://detekt.dev/docs/introduction/configurations
+
+build:
+  maxIssues: 0  # 设为 0 表示任何违规都使构建失败；CI 可覆盖为允许数
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+processors:
+  active: true
+  exclude:
+    - 'DetektProgressListener'
+
+# 启用复杂度与代码异味基础规则集
+complexity:
+  active: true
+  LongMethod:
+    active: true
+    threshold: 80
+  LongParameterList:
+    active: true
+    functionThreshold: 7
+    constructorThreshold: 8
+  ComplexCondition:
+    active: true
+    threshold: 5
+  ComplexMethod:
+    active: true
+    threshold: 20
+  TooManyFields:
+    active: true
+    threshold: 25
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 20
+
+# 潜在 Bug（空指针/相等比较/可空解引用等）
+potential-bugs:
+  active: true
+  UnsafeCallOnNullableType:
+    active: true
+  EqualsAlwaysReturnsTrueOrFalse:
+    active: true
+  IteratorNotThrowingNoSuchElementException:
+    active: true
+  UnreachableCode:
+    active: true
+  WrongEqualsTypeParameter:
+    active: true
+
+empty-blocks:
+  active: true
+  EmptyFunctionBlock:
+    active: false  # Swift Bridge 实现可能在 Kotlin 侧占位
+
+exceptions:
+  active: true
+  SwallowedException:
+    active: true
+  TooGenericExceptionCaught:
+    active: true
+
+naming:
+  active: true
+  FunctionNaming:
+    active: true
+    functionPattern: '([a-z][a-zA-Z0-9]*)|(`.*`)'
+    excludeClassPattern: '$^'
+  ClassNaming:
+    active: true
+    classPattern: '[A-Z][a-zA-Z0-9]*'
+
+style:
+  active: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+    excludePackageStatements: true
+    excludeImportStatements: true
+  MagicNumber:
+    active: false  # Android 资源 ID 常含 magic number，关闭避免噪音
+  ReturnCount:
+    active: false
+  WildcardImport:
+    active: true
+    excludes: ['**/test/**', '**/androidTest/**']

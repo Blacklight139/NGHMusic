@@ -1,0 +1,40 @@
+// 职责：HarmonyOS 工程级构建配置（DevEco Studio）。
+// 集成方式：用 DevEco Studio 打开 harmonyos/ 目录即识别为 ArkUI 工程。
+// 说明：signingConfigs 在真机调试时由 DevEco 自动生成；脚手架留空数组。
+
+{
+  "app": {
+    "signingConfigs": [],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "arkOptions": {
+            "runtimeOnly": {
+              "sources": []
+            }
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      { "name": "debug" },
+      { "name": "release" }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": ["default"]
+        }
+      ]
+    }
+  ]
+}

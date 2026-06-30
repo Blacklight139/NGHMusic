@@ -1,0 +1,20 @@
+# Clippy 配置（music-core）。
+# 文档：https://rust-lang.github.io/rust-clippy/master/index.html/#lint_configuration
+
+# 最小支持 Rust 版本。影响一批与版本相关的 lint（如 `manual_strip`、`collapsible_str_replace`）
+# 是否会提示，避免推荐使用尚不存在的语言特性。
+msrv = "1.74"
+
+# 认知复杂度阈值：超过该值的函数会被 `clippy::cognitive_complexity` 标记。
+# 设置为 25，给予中等复杂度的解析/映射函数一定余量，同时仍能捕获过深的嵌套。
+cognitive-complexity-threshold = 25
+
+# 单个 enum/struct 的字段过多时提示拆分（`clippy::struct_excessive_bools` 等）。
+# 默认值即可，此处显式声明便于团队约定。
+enum-variant-size-threshold = 200
+
+# 大整数字面量必须加后缀，避免推断为 `i32` 触发 `clippy::unreadable_literal`。
+literal-representation-threshold = 10000
+
+# 单个函数过长行数阈值（与 `clippy::too_many_lines` 对齐）。
+too-many-arguments-threshold = 7

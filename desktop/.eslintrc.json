@@ -1,0 +1,38 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2022": true,
+    "node": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "extends": [
+    "eslint:recommended",
+    "prettier"
+  ],
+  "rules": {
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-empty": ["error", { "allowEmptyCatch": false }],
+    "no-undef": "error",
+    "no-redeclare": "error",
+    "prefer-const": "warn",
+    "eqeqeq": ["error", "always"],
+    "no-var": "error",
+    "no-unused-expressions": "warn",
+    "no-async-promise-executor": "error",
+    "no-await-in-loop": "warn",
+    "require-await": "warn",
+    "no-return-await": "warn",
+    "no-throw-literal": "error",
+    "no-shadow": "warn"
+  },
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "src-tauri/"
+  ]
+}

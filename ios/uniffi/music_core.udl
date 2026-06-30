@@ -1,0 +1,103 @@
+// UniFFI 接口定义文件（UDL）
+//
+// 职责：声明 music-core 对 Swift/Kotlin 暴露的 FFI 接口，供 uniffi-bindgen 生成绑定代码。
+// 集成步骤：
+// 1. 将本文件复制到 core/src/ffi.udl（路径与 build.rs 一致）。
+// 2. 在 core/Cargo.toml 增加 uniffi 依赖与 build-dependencies（详见 ios/MusicPlayerApp/Bridge/MusicCoreBridge.swift 注释）。
+// 3. 在 core/src/lib.rs 末尾追加：uniffi::include_scaffolding!("ffi");
+// 4. 执行生成命令（iOS）：
+//    cargo install uniffi-bindgen-cli
+//    uniffi-bindgen generate core/src/ffi.udl --language swift --out-dir ios/Generated
+//    （Android）：--language kotlin --out-dir android/app/src/main/java/com/musicplayer/core
+//
+// 说明：Rust 侧对应实现需在 core/src/ffi.rs（或新模块）用 #[uniffi::export] 标注，
+//       并用 uniffi::Record / uniffi::Enum 派生 Song/SearchResult 等类型。
+//       本 UDL 与 core/src/models.rs 字段保持一致。
+
+namespace music_core {
+    // 返回核心库版本号
+    string app_version();
+
+    // 导入标准音源 JSON，返回导入结果描述
+    string import_source(string json);
+
+    // 聚合搜索：关键字 + 分页
+    SearchResult search(string keyword, u32 page, u32 page_size);
+
+    // 列出本地音乐库歌曲
+    sequence<Song> list_local_songs();
+
+    // 解析并返回可播放 URL
+    string play(string song_id);
+};
+
+// ====== 数据记录（与 core/src/models.rs 对齐） ======
+
+dictionary Song {
+    string id;
+    string source_id;
+    string title;
+    sequence<string> artists;
+    optional<string> album;
+    optional<string> cover_url;
+    optional<u64> duration_ms;
+    optional<string> lyric_url;
+    optional<string> play_url;
+    optional<string> local_path;
+    SongOrigin origin;
+};
+
+[Error]
+enum CoreError {
+    "SourceError";
+    "NotFound";
+    "InvalidInput";
+    "Io";
+};
+
+enum SongOrigin {
+    Online { string source_id; string play_url; };
+    Local { string path; };
+    Nas { string protocol_name; string url; };
+};
+
+dictionary Album {
+    string id;
+    string source_id;
+    string name;
+    sequence<string> artists;
+    optional<string> cover_url;
+    sequence<string> song_ids;
+};
+
+dictionary Artist {
+    string id;
+    string source_id;
+    string name;
+    optional<string> avatar_url;
+    sequence<string> song_ids;
+};
+
+dictionary SearchResult {
+    string keyword;
+    sequence<Song> songs;
+    sequence<Album> albums;
+    sequence<Artist> artists;
+    u64 total;
+    u32 page;
+    u32 page_size;
+};
+
+enum PlayMode {
+    "sequential";
+    "single_loop";
+    "random";
+};
+
+dictionary Leaderboard {
+    string id;
+    string source_id;
+    string name;
+    optional<string> cover_url;
+    sequence<Song> songs;
+};
