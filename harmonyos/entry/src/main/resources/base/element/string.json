@@ -1,0 +1,10 @@
+// 职责：HarmonyOS 字符串资源（module.json5 / 页面引用）。
+{
+  "string": [
+    { "name": "module_desc", "value": "MusicPlayer 主入口模块" },
+    { "name": "EntryAbility_desc", "value": "音乐播放器" },
+    { "name": "EntryAbility_label", "value": "MusicPlayer" },
+    { "name": "reason_internet", "value": "用于访问在线音源与播放" },
+    { "name": "reason_read_media", "value": "用于读取本地音乐文件" }
+  ]
+}

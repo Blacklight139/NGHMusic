@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  职责：Android 清单，声明权限与 Application/MainActivity。
+  权限：INTERNET（在线音源）、READ_MEDIA_AUDIO（Android 13+ 本地音乐读取）。
+  集成方式：Android Studio 同步工程后自动合并。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <application
+        android:name=".MusicPlayerApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="MusicPlayer"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MusicPlayer"
+        tools:targetApi="34">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MusicPlayer">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Media3 媒体会话 Service（后台播放） -->
+        <service
+            android:name="androidx.media3.session.MediaSessionService"
+            android:foregroundServiceType="mediaPlayback"
+            tools:ignore="ExportedService" />
+    </application>
+
+</manifest>

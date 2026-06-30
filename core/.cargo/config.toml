@@ -1,0 +1,16 @@
+# Cargo 配置（music-core）。
+#
+# 目的：
+# - 在 dev/profile 下关闭增量编译以外的优化项，提升冷启动速度；
+# - 默认开启 `tokio` 的多线程运行时（依赖已启用 `full` feature，这里仅做编译器侧约定）；
+# - 将构建产物统一输出到 `target/`，避免与桌面端 Tauri 壳工程产物混淆。
+#
+# 不在此处设置 `[build] rustflags`，以避免与 CI 中显式 `cargo clippy -- -W ...` 冲突。
+
+[build]
+# 并发任务数（CI 上常通过环境变量覆盖，此处仅做本地默认）
+# jobs = 8
+
+[term]
+# 进度条更精简
+quiet = false

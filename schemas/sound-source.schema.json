@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://music.example/schemas/sound-source.schema.json",
+  "title": "Sound Source",
+  "description": "音乐播放器标准音源配置",
+  "type": "object",
+  "required": ["manifest", "endpoints", "fieldMapping"],
+  "additionalProperties": false,
+  "properties": {
+    "manifest": {
+      "type": "object",
+      "description": "音源清单/元信息",
+      "required": ["id", "name", "version", "author"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "音源唯一标识，小写字母数字连字符",
+          "pattern": "^[a-z0-9-]{1,64}$"
+        },
+        "name": {
+          "type": "string",
+          "description": "音源展示名",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "version": {
+          "type": "string",
+          "description": "语义化版本号（semver）",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "author": {
+          "type": "string",
+          "description": "作者"
+        },
+        "description": {
+          "type": "string",
+          "description": "音源描述（可选）"
+        },
+        "homepage": {
+          "type": "string",
+          "description": "主页地址（可选）",
+          "format": "uri"
+        }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "description": "音源对外接口定义",
+      "required": ["search", "metadata", "playUrl"],
+      "additionalProperties": false,
+      "properties": {
+        "search": {
+          "description": "搜索接口",
+          "$ref": "#/$defs/endpoint"
+        },
+        "metadata": {
+          "description": "元数据接口（额外支持 idParam）",
+          "$ref": "#/$defs/endpoint"
+        },
+        "playUrl": {
+          "description": "播放 URL 接口（额外支持 idParam）",
+          "$ref": "#/$defs/endpoint"
+        },
+        "lyric": {
+          "description": "歌词接口（可选，同 metadata 结构）",
+          "$ref": "#/$defs/endpoint"
+        },
+        "leaderboards": {
+          "type": "object",
+          "description": "排行榜接口（可选）",
+          "required": ["url"],
+          "additionalProperties": false,
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "排行榜接口 URL",
+              "format": "uri"
+            },
+            "headers": {
+              "type": "object",
+              "description": "自定义请求头（可选）",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "description": "鉴权配置（可选）",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "鉴权方式",
+          "enum": ["none", "query", "header"],
+          "default": "none"
+        },
+        "tokenParam": {
+          "type": "string",
+          "description": "token 参数名（type 为 query/header 时必填）"
+        },
+        "token": {
+          "type": "string",
+          "description": "token 值（可选，运行时也可注入）"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "query" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["tokenParam"] }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "header" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["tokenParam"] }
+        }
+      ]
+    },
+    "fieldMapping": {
+      "type": "object",
+      "description": "音源返回字段到标准字段的映射",
+      "required": ["song", "album", "artist", "lyric"],
+      "additionalProperties": false,
+      "properties": {
+        "song": {
+          "type": "object",
+          "description": "歌曲字段映射，每个值为字段名或 JSON 指针",
+          "required": ["id", "title"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string", "description": "歌曲 id" },
+            "title": { "type": "string", "description": "标题" },
+            "artists": { "type": "string", "description": "艺术家（数组或字符串→单元素）" },
+            "album": { "type": "string", "description": "专辑名" },
+            "coverUrl": { "type": "string", "description": "封面 URL" },
+            "durationMs": { "type": "string", "description": "时长（数值，单位毫秒）" },
+            "lyricUrl": { "type": "string", "description": "歌词 URL" },
+            "playUrl": { "type": "string", "description": "播放 URL" }
+          }
+        },
+        "album": {
+          "type": "object",
+          "description": "专辑字段映射",
+          "required": ["id", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string", "description": "专辑 id" },
+            "name": { "type": "string", "description": "专辑名" },
+            "artists": { "type": "string", "description": "艺术家" },
+            "coverUrl": { "type": "string", "description": "封面 URL" },
+            "songIds": { "type": "string", "description": "歌曲 id 列表（数组）" }
+          }
+        },
+        "artist": {
+          "type": "object",
+          "description": "艺术家字段映射",
+          "required": ["id", "name"],
+          "additionalProperties": false,
+          "properties": {
+            "id": { "type": "string", "description": "艺术家 id" },
+            "name": { "type": "string", "description": "艺术家名" },
+            "avatarUrl": { "type": "string", "description": "头像 URL" },
+            "songIds": { "type": "string", "description": "歌曲 id 列表（数组）" }
+          }
+        },
+        "lyric": {
+          "type": "object",
+          "description": "歌词字段映射",
+          "required": ["lines"],
+          "additionalProperties": false,
+          "properties": {
+            "lines": {
+              "type": "array",
+              "description": "歌词行映射，每项描述 timeMs 与 text 的字段名",
+              "items": {
+                "type": "object",
+                "required": ["timeMs", "text"],
+                "additionalProperties": false,
+                "properties": {
+                  "timeMs": { "type": "string", "description": "时间字段名（毫秒）" },
+                  "text": { "type": "string", "description": "歌词文本字段名" }
+                }
+              }
+            },
+            "timeField": { "type": "string", "description": "统一时间字段名（可选）" }
+          }
+        },
+        "searchResult": {
+          "type": "object",
+          "description": "搜索结果字段映射（可选）",
+          "additionalProperties": false,
+          "properties": {
+            "total": { "type": "string", "description": "总数字段名（数值）" },
+            "songs": { "type": "string", "description": "歌曲列表字段名（数组）" },
+            "albums": { "type": "string", "description": "专辑列表字段名（数组）" },
+            "artists": { "type": "string", "description": "艺术家列表字段名（数组）" }
+          }
+        }
+      }
+    },
+    "pagination": {
+      "type": "object",
+      "description": "分页配置（可选）",
+      "additionalProperties": false,
+      "properties": {
+        "pageStart": { "type": "number", "description": "起始页码", "default": 0 },
+        "pageSizeDefault": { "type": "number", "description": "默认每页数量", "default": 20 }
+      }
+    },
+    "timeoutMs": {
+      "type": "number",
+      "description": "请求超时时间（毫秒，可选）",
+      "default": 10000
+    }
+  },
+  "$defs": {
+    "endpoint": {
+      "type": "object",
+      "description": "通用音源接口定义（search/metadata/playUrl/lyric 共用）",
+      "required": ["url"],
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "接口 URL",
+          "format": "uri"
+        },
+        "method": {
+          "type": "string",
+          "description": "HTTP 方法",
+          "enum": ["GET", "POST"],
+          "default": "GET"
+        },
+        "queryParam": {
+          "type": "string",
+          "description": "关键词参数名",
+          "default": "keyword"
+        },
+        "pageParam": {
+          "type": "string",
+          "description": "页码参数名",
+          "default": "page"
+        },
+        "pageSizeParam": {
+          "type": "string",
+          "description": "每页数量参数名",
+          "default": "page_size"
+        },
+        "headers": {
+          "type": "object",
+          "description": "自定义请求头（可选）",
+          "additionalProperties": { "type": "string" }
+        },
+        "responseType": {
+          "type": "string",
+          "description": "响应类型",
+          "enum": ["json", "text"],
+          "default": "json"
+        },
+        "idParam": {
+          "type": "string",
+          "description": "歌曲 id 参数名（metadata/playUrl/lyric 使用）",
+          "default": "id"
+        }
+      }
+    }
+  }
+}

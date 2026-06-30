@@ -1,0 +1,14 @@
+// 职责：HarmonyOS 页面路由配置（main_pages profile，module.json5 引用）。
+// 说明：src 指向页面 .ets 文件相对 entry/src/main/ets 的路径。
+{
+  "src": [
+    "pages/Index",
+    "pages/Search",
+    "pages/Playlist",
+    "pages/Favorites",
+    "pages/Leaderboard",
+    "pages/LocalMusic",
+    "pages/Lyrics",
+    "pages/Settings"
+  ]
+}

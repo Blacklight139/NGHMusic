@@ -1,0 +1,15 @@
+// 职责：entry 模块 oh-package 配置。
+// 说明：music-core 的 NAPI（napi-rs）产物以 ohpm 包形式接入（依赖项 napi-music-core 待发布后启用）。
+
+{
+  "name": "entry",
+  "version": "0.1.0",
+  "description": "MusicPlayer 主入口模块",
+  "main": "",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hypium": "1.0.6"
+  }
+}

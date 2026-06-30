@@ -1,0 +1,32 @@
+// 职责：entry 模块构建配置。
+// 说明：abiFilters 对应 music-core 交叉编译的 NAPI 产物目标架构。
+
+{
+  "apiType": "stageMode",
+  "buildOption": {
+    "externalNativeOptions": {
+      "path": "",
+      "arguments": "",
+      "cppFlags": "",
+      "abiFilters": ["arm64-v8a", "armeabi-v7a", "x86_64"]
+    }
+  },
+  "buildOptionSet": [
+    {
+      "name": "release",
+      "arkOptions": {
+        "obfuscation": {
+          "ruleOptions": {
+            "enable": false
+          }
+        }
+      }
+    }
+  ],
+  "targets": [
+    {
+      "name": "default",
+      "runtimeOS": "HarmonyOS"
+    }
+  ]
+}

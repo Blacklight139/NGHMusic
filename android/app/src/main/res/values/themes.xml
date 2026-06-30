@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  职责：定义 AndroidManifest 引用的应用主题 Theme.MusicPlayer。
+  说明：使用 Material3 主题；Compose 在 setContent 中通过 MusicPlayerTheme 应用配色。
+        启动图标 @mipmap/ic_launcher 由 Android Studio 的 Image Asset 工具生成。
+-->
+<resources>
+    <style name="Theme.MusicPlayer" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

@@ -1,0 +1,40 @@
+# HarmonyOS（ArkTS）代码扫描配置占位。
+# 鸿蒙工程基于 ArkTS/TypeScript，可复用 ESLint + @typescript-eslint 与
+# DevEco Studio 自带的代码扫描（CodeCheck）。
+#
+# 当前仓库未引入 Node 工具链，仅作占位声明。当 DevEco Studio 工程接入
+# ESLint 后，下列配置将被 ESLint 自动读取。
+
+root: true
+
+env:
+  browser: true
+  es2022: true
+  node: true
+
+parser: "@typescript-eslint/parser"
+parserOptions:
+  ecmaVersion: 2022
+  sourceType: module
+
+extends:
+  - "eslint:recommended"
+  - "plugin:@typescript-eslint/recommended"
+
+rules:
+  no-console: ["warn", { allow: ["warn", "error"] }]
+  no-unused-vars: "off"
+  "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }]
+  "@typescript-eslint/no-explicit-any": "warn"
+  "@typescript-eslint/no-non-null-assertion": "warn"
+  "@typescript-eslint/consistent-type-imports": "warn"
+  eqeqeq: ["error", "always"]
+  prefer-const: "warn"
+  no-empty: ["error", { allowEmptyCatch: false }]
+  no-throw-literal: "error"
+
+ignorePatterns:
+  - "node_modules/"
+  - "build/"
+  - "**/*.d.ts"
+  - "oh_modules/"
