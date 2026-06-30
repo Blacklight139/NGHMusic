@@ -1,10 +1,10 @@
 # Tasks
 
 ## 阶段一：架构与脚手架
-- [ ] Task 1: 搭建共享 Rust 核心骨架
-  - [ ] 1.1 创建 `core/` workspace（sources/metadata/search/cache/protocols/feiniu/ffi 模块）
-  - [ ] 1.2 定义核心数据模型（Song/Album/Artist/Lyric/SearchResult/Playlist）
-  - [ ] 1.3 定义 FFI 接口（错误处理、字符串/二进制传递规范）
+- [x] Task 1: 搭建共享 Rust 核心骨架
+  - [x] 1.1 创建 `core/` workspace（sources/metadata/search/cache/protocols/feiniu/ffi 模块）
+  - [x] 1.2 定义核心数据模型（Song/Album/Artist/Lyric/SearchResult/Playlist）
+  - [x] 1.3 定义 FFI 接口（错误处理、字符串/二进制传递规范）
 - [ ] Task 2: 搭建四套原生前端脚手架
   - [ ] 2.1 桌面 Tauri 2 + Web UI（覆盖 Linux/Windows/macOS）
   - [ ] 2.2 iOS SwiftUI 工程

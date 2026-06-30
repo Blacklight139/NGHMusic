@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://music-app.dev/schemas/sound-source.schema.json",
+  "title": "Sound Source Config",
+  "description": "标准音源配置 Schema：通过 API 获取主流音乐软件元数据；搜索点击后在音源内定位播放数据并缓存播放。",
+  "type": "object",
+  "required": ["schemaVersion", "manifest", "endpoints"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Schema 版本，当前 1.0",
+      "const": "1.0"
+    },
+    "manifest": {
+      "type": "object",
+      "description": "音源元信息",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "音源唯一 ID（建议反域名风格，如 com.example.netease）"
+        },
+        "name": { "type": "string", "minLength": 1, "description": "展示名称" },
+        "author": { "type": "string" },
+        "version": { "type": "string" },
+        "description": { "type": "string" },
+        "homepage": { "type": "string" }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "description": "鉴权配置；token 占位符 {{auth.token}} 由运行时填入",
+      "required": ["type", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["header", "query", "body", "bearer"],
+          "description": "鉴权注入位置"
+        },
+        "name": { "type": "string", "description": "字段名（如 Authorization）" },
+        "token": { "type": "string", "description": "占位符或固定值" }
+      }
+    },
+    "fieldMapping": {
+      "type": "object",
+      "description": "音源原始字段名到标准字段名的映射",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "default": "title" },
+        "artist": { "type": "string", "default": "artist" },
+        "album": { "type": "string", "default": "album" },
+        "cover": { "type": "string", "default": "cover" },
+        "duration": { "type": "string", "default": "duration" },
+        "lyric": { "type": "string", "default": "lyric" },
+        "songId": { "type": "string", "default": "id" },
+        "playUrl": { "type": "string", "default": "url" }
+      }
+    },
+    "endpoints": {
+      "type": "object",
+      "description": "音源 API 端点。至少需要 search 或 metadata 之一。",
+      "additionalProperties": false,
+      "properties": {
+        "search": { "$ref": "#/definitions/endpoint" },
+        "metadata": { "$ref": "#/definitions/endpoint" },
+        "play": { "$ref": "#/definitions/endpoint" },
+        "lyric": { "$ref": "#/definitions/endpoint" },
+        "ranking": { "$ref": "#/definitions/endpoint" }
+      }
+    }
+  },
+  "definitions": {
+    "endpoint": {
+      "type": "object",
+      "required": ["method", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "method": { "type": "string", "enum": ["GET", "POST"] },
+        "url": { "type": "string", "format": "uri", "description": "支持 {{auth.token}} {{keyword}} {{songId}} {{rankingId}} {{page}} 等占位符" },
+        "params": {
+          "type": "array",
+          "description": "查询参数键值对",
+          "items": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "body": { "type": "string", "description": "POST body 模板（JSON 字符串，支持占位符）" },
+        "dataPath": { "type": "string", "description": "响应数据路径（点号 JSONPath，如 data.songs）" }
+      }
+    }
+  }
+}
