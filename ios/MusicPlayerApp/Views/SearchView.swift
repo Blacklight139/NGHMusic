@@ -21,18 +21,18 @@ struct SearchView: View {
 
     var body: some View {
         PageContainer(title: "搜索", subtitle: "跨音源聚合检索") {
-            VStack(spacing: AppTheme.space3) {
-                HStack(spacing: AppTheme.space2) {
+            VStack(spacing: NghSpacing.s3) {
+                HStack(spacing: NghSpacing.s2) {
                     TextField("输入歌曲 / 艺术家 / 专辑", text: $keyword)
                         .textFieldStyle(.roundedBorder)
                     Button(action: performSearch) {
                         Text("搜索").foregroundColor(.white)
-                            .padding(.horizontal, AppTheme.space4).padding(.vertical, AppTheme.space3)
-                            .background(AppTheme.primary).cornerRadius(AppTheme.radius)
+                            .padding(.horizontal, NghSpacing.s4).padding(.vertical, NghSpacing.s2)
+                            .background(Color.nghPrimary).cornerRadius(NghRadius.md)
                     }
                 }
                 if let errorMessage = errorMessage {
-                    Text(errorMessage).foregroundColor(.red).font(.caption)
+                    Text(errorMessage).foregroundColor(Color.nghDanger).font(.caption)
                 }
                 if loading { ProgressView("搜索中…") }
                 SongListView(songs: songs.isEmpty ? placeholderSongs : songs)
@@ -61,11 +61,15 @@ struct SearchView: View {
 struct SongListView: View {
     let songs: [Song]
     var body: some View {
-        VStack(spacing: AppTheme.space2) {
+        VStack(spacing: NghSpacing.s3) {
             ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                SongRow(index: index + 1, song: song)
+                Button { /* press 反馈，暂无跳转 */ } label: { SongRow(index: index + 1, song: song) }
+                    .nghPressableStyle()
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        // iOS 15+：列表项出现时 staggered fade-in。
+        .animation(.easeOut(duration: 0.3), value: songs.count)
     }
 }
 
@@ -73,24 +77,23 @@ struct SongRow: View {
     let index: Int
     let song: Song
     var body: some View {
-        HStack(spacing: AppTheme.space3) {
+        HStack(spacing: NghSpacing.s3) {
             Text("\(index)").frame(width: 24)
-                .foregroundColor(AppTheme.textMuted).font(.caption)
+                .foregroundColor(Color.nghTextTertiary).font(.caption)
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title).fontWeight(.medium).lineLimit(1)
+                    .foregroundColor(Color.nghText)
                 Text(song.artists.joined(separator: " / "))
-                    .font(.caption).foregroundColor(AppTheme.textMuted).lineLimit(1)
+                    .font(.caption).foregroundColor(Color.nghTextSecondary).lineLimit(1)
             }
             Spacer()
             Text("在线").font(.caption2)
-                .padding(.horizontal, AppTheme.space2).padding(.vertical, 2)
-                .background(AppTheme.bgAlt).cornerRadius(999)
-                .overlay(Capsule().stroke(AppTheme.border, lineWidth: 1))
-                .foregroundColor(AppTheme.textMuted)
+                .padding(.horizontal, NghSpacing.s2).padding(.vertical, 2)
+                .background(Color.nghPrimarySoft).foregroundColor(Color.nghPrimary)
+                .clipShape(Capsule())
         }
-        .padding(AppTheme.space3)
-        .background(AppTheme.bg)
-        .cornerRadius(AppTheme.radius)
-        .overlay(RoundedRectangle(cornerRadius: AppTheme.radius).stroke(AppTheme.border, lineWidth: 1))
+        .padding(NghSpacing.s4)
+        .background(RoundedRectangle(cornerRadius: NghRadius.md, style: .continuous).fill(Color.nghSurface))
+        .nghCardShadow()
     }
 }

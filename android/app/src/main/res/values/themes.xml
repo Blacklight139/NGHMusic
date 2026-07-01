@@ -2,11 +2,23 @@
 <!--
   职责：定义 AndroidManifest 引用的应用主题 Theme.MusicPlayer。
   说明：使用 Material3 主题；Compose 在 setContent 中通过 MusicPlayerTheme 应用配色。
+        主题色对齐豆包风格主色 #4E6EF2。
         启动图标 @mipmap/ic_launcher 由 Android Studio 的 Image Asset 工具生成。
 -->
 <resources>
     <style name="Theme.MusicPlayer" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:colorPrimary">#4E6EF2</item>
+        <item name="android:colorAccent">#4E6EF2</item>
     </style>
+
+    <!-- 豆包风格主色，供 drawable / XML 资源复用 -->
+    <color name="ngh_primary">#4E6EF2</color>
+    <color name="ngh_primary_hover">#3D5AE0</color>
+    <color name="ngh_background">#F7F8FA</color>
+    <color name="ngh_surface">#FFFFFF</color>
+    <color name="ngh_text_primary">#1F1F1F</color>
+    <color name="ngh_text_secondary">#6B6B6B</color>
+    <color name="ngh_border">#EDEEF0</color>
 </resources>

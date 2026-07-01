@@ -29,6 +29,26 @@ namespace music_core {
 
     // 解析并返回可播放 URL
     string play(string song_id);
+
+    // ====== 音源管理（LXMusic 风格） ======
+
+    // 列出所有音源（按优先级升序排列）
+    sequence<SourceInfo> list_sources_ordered();
+
+    // 更新单个音源优先级
+    void update_source_priority(string id, i32 new_priority);
+
+    // 按给定 id 顺序重排音源
+    void reorder_sources(sequence<string> ordered_ids);
+
+    // 删除指定音源
+    void delete_source(string id);
+
+    // 启用 / 禁用指定音源
+    void set_source_enabled(string id, boolean enabled);
+
+    // 从 JSON 字符串导入音源，返回导入后的 SourceInfo
+    SourceInfo import_source_from_json(string json_str);
 };
 
 // ====== 数据记录（与 core/src/models.rs 对齐） ======
@@ -99,5 +119,16 @@ dictionary Leaderboard {
     string source_id;
     string name;
     optional<string> cover_url;
-    sequence<Song> songs;
+    sequence<string> song_ids;
+};
+
+// 音源信息（对应 Rust SourceInfo：id/name/version/enabled/source_type/priority/description）
+dictionary SourceInfo {
+    string id;
+    string name;
+    string version;
+    boolean enabled;
+    string source_type;       // json / community / local
+    i32 priority;
+    string description;
 };

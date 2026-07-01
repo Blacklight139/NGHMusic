@@ -19,7 +19,7 @@ struct LocalMusicView: View {
 
     var body: some View {
         PageContainer(title: "本地音乐", subtitle: "扫描本地目录并播放") {
-            VStack(alignment: .leading, spacing: AppTheme.space3) {
+            VStack(alignment: .leading, spacing: NghSpacing.s3) {
                 Picker("", selection: $selectedFilter) {
                     ForEach(0..<filters.count, id: \.self) { Text(filters[$0]).tag($0) }
                 }
@@ -28,11 +28,15 @@ struct LocalMusicView: View {
                 if songs.isEmpty {
                     EmptyState(text: "尚未扫描本地音乐，前往设置添加目录")
                 } else {
-                    VStack(spacing: AppTheme.space2) {
+                    VStack(spacing: NghSpacing.s3) {
                         ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                            SongRow(index: index + 1, song: song)
+                            Button { /* press 反馈，暂无跳转 */ } label: { SongRow(index: index + 1, song: song) }
+                                .nghPressableStyle()
+                                .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
+                    // iOS 15+：列表项出现时 staggered fade-in。
+                    .animation(.easeOut(duration: 0.3), value: songs.count)
                 }
             }
         }

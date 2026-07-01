@@ -1,5 +1,5 @@
 // 职责：HarmonyOS ArkUI 主页，Tabs 导航（搜索/列表/收藏/排行榜/本地/设置）+ 底部播放组件。
-// 简约风格：主色 #1db954，背景 #fff/#f5f5f5，与桌面端布局对齐。
+// 豆包风格设计 token（ngh_*），品牌位「逆光音乐」，Tabs/播放控制图标统一使用 sys.symbol.* 系统符号。
 // 集成方式：作为 EntryAbility 的入口页面（main_pages.json 第一项）。
 
 import { playerManager, PlayMode } from '../player/PlayerManager';
@@ -32,6 +32,18 @@ struct Index {
 
   build() {
     Column() {
+      // 品牌位
+      Row() {
+        Text($r('app.string.app_name'))
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor($r('app.color.ngh_text_primary'))
+      }
+      .width('100%')
+      .height(48)
+      .padding({ left: 16, right: 16 })
+      .backgroundColor($r('app.color.ngh_surface'))
+
       Tabs({ barPosition: BarPosition.End, index: this.currentIndex }) {
         TabContent() { SearchPage() }.tabBar(this.tabBuilder('搜索', 0))
         TabContent() { PlaylistPage() }.tabBar(this.tabBuilder('播放列表', 1))
@@ -41,32 +53,53 @@ struct Index {
         TabContent() { SettingsPage() }.tabBar(this.tabBuilder('设置', 5))
       }
       .barMode(BarMode.Fixed)
-      .onChange((index: number) => { this.currentIndex = index; })
+      .animationMode(AnimationMode.CONTENT_ANIMATION)
+      .onChange((index: number) => {
+        animateTo({ duration: 200, curve: Curve.EaseInOut }, () => {
+          this.currentIndex = index;
+        })
+      })
 
       // 底部迷你播放组件
-      this.MiniPlayer()
+      if (this.hasCurrentSong()) {
+        this.MiniPlayer()
+      }
     }
     .width('100%').height('100%')
-    .backgroundColor($r('app.color.bg_alt'))
+    .backgroundColor($r('app.color.ngh_background'))
   }
 
   @Builder
   tabBuilder(title: string, index: number) {
     Column() {
-      Text(this.tabIcon(index))
-        .fontSize(18)
-        .fontColor(index === this.currentIndex ? $r('app.color.primary') : $r('app.color.text_muted'))
+      SymbolGlyph(this.tabSysIcon(index))
+        .fontSize(20)
+        .fontColor([index === this.currentIndex ? $r('app.color.ngh_primary') : $r('app.color.ngh_text_tertiary')])
       Text(title)
         .fontSize(10)
         .margin({ top: 2 })
-        .fontColor(index === this.currentIndex ? $r('app.color.primary') : $r('app.color.text_muted'))
-    }.width('100%').justifyContent(FlexAlign.Center).padding({ top: 6, bottom: 6 })
+        .fontColor(index === this.currentIndex ? $r('app.color.ngh_primary') : $r('app.color.ngh_text_tertiary'))
+    }
+    .width('100%').justifyContent(FlexAlign.Center).padding({ top: 6, bottom: 6 })
+    .backgroundColor($r('app.color.ngh_surface'))
   }
 
-  private tabIcon(index: number): string {
-    // 用文字符号代替图标（脚手架阶段无图标资源）
-    const icons = ['🔍', '☰', '★', '🏆', '📁', '⚙'];
-    return icons[index] ?? '·';
+  private tabSysIcon(index: number): Resource {
+    // 使用 HarmonyOS 系统符号 sys.symbol.*（API 10+），无需外部图标资源
+    switch (index) {
+      case 0: return $r('sys.symbol.magnifyingglass');
+      case 1: return $r('sys.symbol.list_bullet');
+      case 2: return $r('sys.symbol.heart');
+      case 3: return $r('sys.symbol.trophy');
+      case 4: return $r('sys.symbol.folder');
+      case 5: return $r('sys.symbol.gearshape');
+      default: return $r('sys.symbol.circle');
+    }
+  }
+
+  // 是否有当前播放歌曲：用于 MiniPlayer 条件渲染（出现/消失过渡）
+  private hasCurrentSong(): boolean {
+    return this.playerStatus.duration > 0 || this.playerStatus.isPlaying;
   }
 
   @Builder
@@ -76,48 +109,68 @@ struct Index {
       Progress({ value: this.playerStatus.position,
                 total: Math.max(this.playerStatus.duration, 1), type: ProgressType.Linear })
         .width('100%').height(2)
-        .color($r('app.color.primary'))
-        .backgroundColor($r('app.color.border'))
+        .color($r('app.color.ngh_primary'))
+        .backgroundColor($r('app.color.ngh_border_soft'))
 
       Row() {
         // 封面
         Column()
           .width(40).height(40).borderRadius(8)
-          .linearGradient({ angle: 135, colors: [[$r('app.color.primary'), 0], [$r('app.color.primary_dark'), 1]] })
+          .linearGradient({ angle: 135, colors: [[$r('app.color.ngh_primary'), 0], [$r('app.color.ngh_primary_hover'), 1]] })
         Column() {
           Text(this.playerStatus.currentTitle)
             .fontSize(13).fontWeight(FontWeight.Medium).maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .fontColor($r('app.color.text_primary'))
+            .fontColor($r('app.color.ngh_text_primary'))
           Text(this.playerStatus.currentArtist)
             .fontSize(11).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-            .fontColor($r('app.color.text_muted'))
+            .fontColor($r('app.color.ngh_text_secondary'))
         }
         .layoutWeight(1).margin({ left: 8 })
 
-        // 控制
-        Text('⏮').fontSize(18).margin({ right: 12 }).onClick(() => playerManager.toPrev())
-        Text(this.playerStatus.isPlaying ? '⏸' : '▶').fontSize(20).margin({ right: 12 })
+        // 控制（系统符号；media 控制类符号名需在目标设备核对，如缺失可改用 Image($r('app.media.xxx')) SVG）
+        SymbolGlyph($r('sys.symbol.backward_end'))
+          .fontSize(20)
+          .fontColor([$r('app.color.ngh_text_primary')])
+          .margin({ right: 12 }).onClick(() => playerManager.toPrev())
+        SymbolGlyph(this.playerStatus.isPlaying ? $r('sys.symbol.pause') : $r('sys.symbol.play'))
+          .fontSize(22)
+          .fontColor([$r('app.color.ngh_text_primary')])
+          .margin({ right: 12 })
           .onClick(() => { this.playerStatus.isPlaying ? playerManager.pause() : playerManager.resume(); })
-        Text('⏭').fontSize(18).margin({ right: 12 }).onClick(() => playerManager.toNext())
-        Text(this.modeIcon()).fontSize(16).margin({ right: 8 })
-          .onClick(() => playerManager.toggleMode())
-        Text('🔊').fontSize(14).fontColor($r('app.color.text_muted'))
+        SymbolGlyph($r('sys.symbol.forward_end'))
+          .fontSize(20)
+          .fontColor([$r('app.color.ngh_text_primary')])
+          .margin({ right: 12 }).onClick(() => playerManager.toNext())
+        SymbolGlyph(this.modeSysIcon())
+          .fontSize(18)
+          .fontColor([$r('app.color.ngh_text_secondary')])
+          .margin({ right: 8 }).onClick(() => playerManager.toggleMode())
+        SymbolGlyph($r('sys.symbol.speaker'))
+          .fontSize(16)
+          .fontColor([$r('app.color.ngh_text_secondary')])
         Slider({ value: this.playerStatus.volume, min: 0, max: 1, step: 0.01 })
-          .width(80).blockColor($r('app.color.primary')).selectedColor($r('app.color.primary'))
+          .width(80).blockColor($r('app.color.ngh_primary')).selectedColor($r('app.color.ngh_primary'))
           .onChange((v: number) => playerManager.setVolume(v))
       }
       .width('100%').height(56).padding({ left: 16, right: 16 })
-      .backgroundColor($r('app.color.bg'))
     }
+    .width('100%')
+    .backgroundColor($r('app.color.ngh_surface'))
+    .borderRadius(16)
+    .shadow({ radius: 12, color: '#1F000000', offsetX: 0, offsetY: 4 })
+    .margin({ left: 12, right: 12, bottom: 12 })
+    .clip(true)
+    .animation({ duration: 200, curve: Curve.EaseInOut })
+    .transition({ type: TransitionType.All, opacity: 0, translate: { y: 100 } })
   }
 
-  private modeIcon(): string {
+  private modeSysIcon(): Resource {
     switch (this.playerStatus.mode) {
-      case PlayMode.SEQUENTIAL: return '🔁';
-      case PlayMode.SINGLE_LOOP: return '🔂';
-      case PlayMode.RANDOM: return '🔀';
-      default: return '🔁';
+      case PlayMode.SEQUENTIAL: return $r('sys.symbol.repeat');
+      case PlayMode.SINGLE_LOOP: return $r('sys.symbol.repeat_1');
+      case PlayMode.RANDOM: return $r('sys.symbol.shuffle');
+      default: return $r('sys.symbol.repeat');
     }
   }
 }
