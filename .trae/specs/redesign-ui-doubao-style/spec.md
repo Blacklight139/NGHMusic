@@ -1,14 +1,18 @@
 # UI 重设计（豆包风格 + LXMusic 音源管理）Spec
 
 ## Why
-当前六端 UI 采用 Spotify 风格（绿色主色 + 深色侧栏），视觉偏重且与主流 AI 助手类应用的简约柔和趋势不符；音源导入仅提供 JSON 文本框，操作门槛高且导入后缺乏可视化管理。本次重设计将 UI 全面改为豆包风格（极简、柔和、圆角卡片、充足留白），并将音源导入改为文件上传、音源管理仿照 LXMusic（列表化、开关、排序、编辑、删除），提升整体观感与音源管理体验。
+当前六端 UI 采用 Spotify 风格（绿色主色 + 深色侧栏），视觉偏重且与主流 AI 助手类应用的简约柔和趋势不符；音源导入仅提供 JSON 文本框，操作门槛高且导入后缺乏可视化管理；应用尚无统一品牌名称与图标体系。本次重设计将应用命名为「逆光音乐」（NGHMusic），UI 全面改为豆包风格（极简、柔和、圆角卡片、充足留白），图标统一使用开源图标库（禁用 emoji），音源导入改为文件上传、音源管理仿照 LXMusic（列表化、开关、排序、编辑、删除），提升整体观感与音源管理体验。
 
 ## 范围说明
 - **本次仅更改 UI 设计**，四端（桌面 Tauri/iOS SwiftUI/Android Compose/HarmonyOS ArkUI）前端全面重做样式与音源管理交互。
 - **后端可做微调**：仅允许为支撑新 UI/交互（如音源列表查询、排序持久化）对 Rust 核心做小幅适配，不改动音源引擎、协议、缓存等核心逻辑。
+- **品牌命名**：应用中文名「逆光音乐」，英文名「NGHMusic」，四端统一使用。
+- **图标规范**：全端禁用 emoji，统一使用开源图标库（桌面 Lucide/Heroicons via SVG、iOS SF Symbols、Android Material Icons、HarmonyOS 系统图标或开源 SVG）。
 
 ## What Changes
+- 应用命名为「逆光音乐」（NGHMusic），四端窗口标题/品牌位统一显示
 - 四端 UI 全面重设计为豆包风格：柔和浅色配色、圆角卡片、充足留白、柔和阴影、友好字体层级
+- 全端禁用 emoji，统一接入开源图标库（桌面 Lucide/Heroicons SVG、iOS SF Symbols、Android Material Icons、HarmonyOS 系统图标/SVG）
 - 桌面端侧栏由深色改为浅色柔和风格，主色由 #1db954 改为豆包风柔和色（如 #4E6EF2 蓝紫 或 #C8A064 暖金，最终以设计稿为准）
 - 音源导入改为文件上传（文件选择器选 .json 文件），移除纯文本框导入方式
 - 导入后音源如 LXMusic 显示在设置页音源列表中：每项含名称、启用/禁用开关、来源标识、操作（编辑/删除/排序）
@@ -27,6 +31,20 @@
   - 后端微调：`core/src/sources/mod.rs`（SourceManager 暴露有序列表与优先级更新）
 
 ## ADDED Requirements
+
+### Requirement: 品牌命名
+系统 SHALL 统一命名为「逆光音乐」（英文名 NGHMusic），四端窗口标题、启动页、品牌位均显示该名称。
+
+#### Scenario: 品牌显示
+- **WHEN** 用户打开任一端应用
+- **THEN** 窗口标题与品牌位显示「逆光音乐」/「NGHMusic」
+
+### Requirement: 开源图标库（禁用 emoji）
+系统 SHALL 全端禁用 emoji 表情，统一使用开源图标库承载所有图标：桌面端使用 Lucide 或 Heroicons（SVG 内联）、iOS 使用 SF Symbols、Android 使用 Material Icons、HarmonyOS 使用系统图标或开源 SVG。
+
+#### Scenario: 图标来源统一
+- **WHEN** 任一界面渲染图标（导航/播放控制/操作按钮等）
+- **THEN** 图标来自对应端开源图标库，不存在任何 emoji 字符
 
 ### Requirement: 豆包风格设计系统
 系统 SHALL 采用豆包风格视觉语言：柔和浅色背景、圆角卡片（radius ≥ 12px）、充足留白、柔和阴影、友好字体层级、低饱和强调色；四端共享统一设计 token 并各自落地。

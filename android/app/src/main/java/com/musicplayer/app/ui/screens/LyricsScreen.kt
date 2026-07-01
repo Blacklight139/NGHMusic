@@ -1,12 +1,14 @@
-// 职责：歌词屏幕，逐行展示并高亮当前行，简约风格占位。
+// 职责：歌词屏幕，逐行展示并高亮当前行，豆包风格：active 行 Primary，非 active TextTertiary。
 // 对齐桌面端 pages/lyrics.js：与 PlayerManager.position 同步滚动。
 
 package com.musicplayer.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,22 +50,34 @@ fun LyricsScreen(player: PlayerManager = viewModel()) {
         listState.animateScrollToItem(currentIndex)
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(NghDimensions.spacing4)
+    ) {
         Text("歌词", style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
-        Spacer(Modifier.height(16.dp))
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Spacer(Modifier.height(NghDimensions.spacing4))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(NghDimensions.radiusMd),
+            colors = CardDefaults.cardColors(containerColor = Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            itemsIndexed(lines) { i, line ->
-                Text(
-                    line.text,
-                    fontSize = 16.sp,
-                    fontWeight = if (i == currentIndex) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (i == currentIndex) TextPrimary else TextMuted,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().padding(NghDimensions.spacing4),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                itemsIndexed(lines) { i, line ->
+                    Text(
+                        line.text,
+                        fontSize = 16.sp,
+                        fontWeight = if (i == currentIndex) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (i == currentIndex) Primary else TextTertiary,
+                        modifier = Modifier.padding(vertical = NghDimensions.spacing3)
+                    )
+                }
             }
         }
     }

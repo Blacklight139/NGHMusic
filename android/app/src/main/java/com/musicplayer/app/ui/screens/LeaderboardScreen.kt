@@ -1,7 +1,8 @@
-// 职责：排行榜屏幕，榜单卡片网格，简约风格占位。
+// 职责：排行榜屏幕，榜单卡片网格，豆包风格 Card。
 
 package com.musicplayer.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -25,17 +26,22 @@ fun LeaderboardScreen(player: PlayerManager = viewModel()) {
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(NghDimensions.spacing4)
+    ) {
         Text("排行榜", style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
-        Text("各音源热门榜单", style = MaterialTheme.typography.labelMedium, color = TextMuted)
-        Spacer(Modifier.height(16.dp))
+        Text("各音源热门榜单", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        Spacer(Modifier.height(NghDimensions.spacing4))
 
         LazyVerticalGrid(
             columns = GridCells.Adaptive(minSize = 160.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(NghDimensions.spacing3),
+            horizontalArrangement = Arrangement.spacedBy(NghDimensions.spacing3)
         ) {
-            items(boards) { b -> Card(title = b.name, subtitle = "${b.songs.size} 首") }
+            items(boards) { b -> GroupCard(title = b.name, subtitle = "${b.songs.size} 首") }
         }
     }
 }

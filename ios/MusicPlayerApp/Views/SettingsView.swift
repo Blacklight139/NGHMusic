@@ -1,97 +1,429 @@
 // MARK: - SettingsView
-// 职责：设置页，展示核心版本、音源导入（JSON）、缓存/目录管理，简约风格占位。
-// 对齐桌面端 pages/settings.js：调用 MusicCore.importSource 导入音源 JSON。
+// 职责：设置页。LXMusic 风格音源管理（列表 / 排序 / 开关 / 删除 / 文件导入）+ 核心版本 + 本地目录 + 缓存占位。
+// 音源管理通过 MusicCore.listSourcesOrdered / reorderSources / setSourceEnabled /
+// deleteSource / importSourceFromJson 调用核心 SourceManager。
+// 文件导入使用 SwiftUI 原生 .fileImporter（iOS 14+，无需 Info.plist 配置 UIDocumentPickerSupport）。
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
-    @State private var sourceJson: String = ""
-    @State private var resultMessage: String = ""
-    @State private var resultOk = false
+    @State private var sources: [SourceInfo] = []
     @State private var appVersion = "（未连接）"
+    @State private var showFileImporter = false
+    @State private var importErrorMessage: String?
+    @State private var sourceToDelete: SourceInfo?
+    @State private var selectedSource: SourceInfo?
 
     var body: some View {
-        PageContainer(title: "设置", subtitle: "音源管理 / 缓存 / 本地目录") {
-            VStack(alignment: .leading, spacing: AppTheme.space4) {
-                // 版本
+        List {
+            // 核心版本
+            Section {
                 HStack {
-                    Text("核心版本").font(.subheadline).foregroundColor(AppTheme.textMuted)
+                    Text("核心版本")
+                        .font(.subheadline)
+                        .foregroundColor(Color.nghTextSecondary)
                     Spacer()
-                    Text(appVersion).font(.subheadline).foregroundColor(AppTheme.text)
+                    Text(appVersion)
+                        .font(.subheadline)
+                        .foregroundColor(Color.nghText)
                 }
-
-                // 音源导入
-                VStack(alignment: .leading, spacing: AppTheme.space2) {
-                    Text("音源导入").font(.subheadline).fontWeight(.medium)
-                    Text("粘贴标准音源 JSON Schema 内容").font(.caption)
-                        .foregroundColor(AppTheme.textMuted)
-                    TextEditor(text: $sourceJson)
-                        .font(.system(size: 12, design: .monospaced))
-                        .frame(minHeight: 160)
-                        .padding(AppTheme.space2)
-                        .background(AppTheme.bg)
-                        .overlay(RoundedRectangle(cornerRadius: AppTheme.radius)
-                            .stroke(AppTheme.border, lineWidth: 1))
-                        .cornerRadius(AppTheme.radius)
-                    HStack {
-                        Button(action: importSource) {
-                            Text("导入")
-                                .foregroundColor(.white)
-                                .padding(.horizontal, AppTheme.space4)
-                                .padding(.vertical, AppTheme.space3)
-                                .background(AppTheme.primary)
-                                .cornerRadius(AppTheme.radius)
-                        }
-                        Spacer()
-                    }
-                    if !resultMessage.isEmpty {
-                        Text(resultMessage)
-                            .font(.caption)
-                            .foregroundColor(resultOk ? AppTheme.primary : .red)
-                            .padding(AppTheme.space3)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(AppTheme.bg)
-                            .overlay(RoundedRectangle(cornerRadius: AppTheme.radius)
-                                .stroke(resultOk ? AppTheme.primary : Color(hex: 0xe57373), lineWidth: 1))
-                            .cornerRadius(AppTheme.radius)
-                    }
-                }
-
-                // 本地目录占位
-                VStack(alignment: .leading, spacing: AppTheme.space2) {
-                    Text("本地音乐目录").font(.subheadline).fontWeight(.medium)
-                    EmptyState(text: "暂无目录，将在此添加 / 移除本地目录并触发扫描")
-                }
-
-                // 缓存占位
-                VStack(alignment: .leading, spacing: AppTheme.space2) {
-                    Text("播放缓存").font(.subheadline).fontWeight(.medium)
-                    EmptyState(text: "缓存容量与清理功能将在此提供")
-                }
+            } header: {
+                Text("关于")
             }
-            .onAppear(perform: loadVersion)
+            .listRowBackground(Color.nghSurface)
+
+            // 音源管理（LXMusic 风格）
+            Section {
+                if sources.isEmpty {
+                    sourceEmptyState
+                } else {
+                    ForEach(sources) { source in
+                        sourceRow(source)
+                    }
+                    .onMove(perform: moveFromOffsets)
+                }
+            } header: {
+                sourceSectionHeader
+            }
+            .listRowBackground(Color.nghSurface)
+
+            // 本地音乐目录（占位，逻辑不变）
+            Section {
+                Text("暂无目录，将在此添加 / 移除本地目录并触发扫描")
+                    .font(.subheadline)
+                    .foregroundColor(Color.nghTextSecondary)
+            } header: {
+                Text("本地音乐目录")
+            }
+            .listRowBackground(Color.nghSurface)
+
+            // 播放缓存（占位，逻辑不变）
+            Section {
+                Text("缓存容量与清理功能将在此提供")
+                    .font(.subheadline)
+                    .foregroundColor(Color.nghTextSecondary)
+            } header: {
+                Text("播放缓存")
+            }
+            .listRowBackground(Color.nghSurface)
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden) // 需 iOS 16+；低版本可用 UITableView.appearance() 替代
+        .background(Color.nghBackground)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            settingsHeader
+        }
+        .onAppear {
+            loadVersion()
+            Task { await loadSources() }
+        }
+        .fileImporter(isPresented: $showFileImporter,
+                      allowedContentTypes: [.json],
+                      allowsMultipleSelection: false) { result in
+            Task { await handleFileImport(result) }
+        }
+        .alert("导入失败",
+               isPresented: Binding(get: { importErrorMessage != nil },
+                                    set: { if !$0 { importErrorMessage = nil } })) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(importErrorMessage ?? "")
+        }
+        .confirmationDialog(
+            sourceToDelete.map { "确定删除音源「\($0.name)」？" } ?? "",
+            isPresented: Binding(get: { sourceToDelete != nil },
+                                 set: { if !$0 { sourceToDelete = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("删除", role: .destructive) {
+                if let source = sourceToDelete {
+                    performDelete(source)
+                }
+                sourceToDelete = nil
+            }
+            Button("取消", role: .cancel) {
+                sourceToDelete = nil
+            }
+        }
+        .sheet(item: $selectedSource) { source in
+            SourceDetailSheet(source: source)
         }
     }
+
+    // MARK: - 子视图
+
+    /// 顶部标题（替代 PageContainer 标题区，因本页改用 List 根布局以支持 .onMove）
+    private var settingsHeader: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("设置")
+                .font(.title2).fontWeight(.semibold)
+                .foregroundColor(Color.nghText)
+            Text("音源管理 / 缓存 / 本地目录")
+                .font(.caption)
+                .foregroundColor(Color.nghTextSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.vertical, NghSpacing.s3)
+        .background(Color.nghBackground)
+    }
+
+    /// 音源管理 Section header：标题 + 副标题「已导入 N 个音源」+ 右上角导入按钮
+    private var sourceSectionHeader: some View {
+        HStack(spacing: NghSpacing.s3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("音源管理")
+                    .font(.subheadline).fontWeight(.semibold)
+                    .foregroundColor(Color.nghText)
+                Text("已导入 \(sources.count) 个音源")
+                    .font(.caption2)
+                    .foregroundColor(Color.nghTextSecondary)
+            }
+            Spacer()
+            Button {
+                showFileImporter = true
+            } label: {
+                Image(systemName: "square.and.arrow.down")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(Color.nghPrimary)
+                    .frame(width: 32, height: 32)
+            }
+        }
+    }
+
+    /// 空状态：暂无音源，点击导入
+    private var sourceEmptyState: some View {
+        Button {
+            showFileImporter = true
+        } label: {
+            VStack(spacing: NghSpacing.s2) {
+                Image(systemName: "tray.and.arrow.down")
+                    .font(.system(size: 28))
+                    .foregroundColor(Color.nghTextTertiary)
+                Text("暂无音源，点击导入")
+                    .font(.subheadline)
+                    .foregroundColor(Color.nghTextSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, NghSpacing.s5)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 单行音源：拖动手柄 + 名称/标签 + 开关 + 上移/下移 + 删除，点击行展开详情
+    private func sourceRow(_ source: SourceInfo) -> some View {
+        HStack(spacing: NghSpacing.s2) {
+            // 拖动手柄（视觉提示；.onMove 提供实际长按拖动排序）
+            Image(systemName: "line.3.horizontal")
+                .font(.caption)
+                .foregroundColor(Color.nghTextTertiary)
+
+            // 名称 + 来源标签 + 版本
+            VStack(alignment: .leading, spacing: NghSpacing.s1) {
+                Text(source.name)
+                    .font(.subheadline).fontWeight(.semibold)
+                    .foregroundColor(Color.nghText)
+                    .lineLimit(1)
+                HStack(spacing: NghSpacing.s1) {
+                    SourceTypeTag(sourceType: source.sourceType)
+                    Text("v\(source.version)")
+                        .font(.caption2)
+                        .foregroundColor(Color.nghTextTertiary)
+                }
+            }
+
+            Spacer(minLength: NghSpacing.s2)
+
+            // 启用开关
+            Toggle("", isOn: Binding(
+                get: { source.enabled },
+                set: { newValue in toggleSource(source, enabled: newValue) }
+            ))
+            .labelsHidden()
+            .tint(Color.nghPrimary)
+            // iOS 15+：开关状态与 tint 切换平滑过渡。
+            .animation(.easeInOut(duration: 0.2), value: source.enabled)
+
+            // 上移 / 下移
+            VStack(spacing: 0) {
+                Button {
+                    moveSource(source, up: true)
+                } label: {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(canMove(source, up: true)
+                                         ? Color.nghTextSecondary : Color.nghBorder)
+                }
+                .disabled(!canMove(source, up: true))
+                Button {
+                    moveSource(source, up: false)
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(canMove(source, up: false)
+                                         ? Color.nghTextSecondary : Color.nghBorder)
+                }
+                .disabled(!canMove(source, up: false))
+            }
+            .buttonStyle(.borderless)
+
+            // 删除
+            Button {
+                sourceToDelete = source
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.nghDanger)
+            }
+            .buttonStyle(.borderless)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selectedSource = source
+        }
+    }
+
+    // MARK: - 数据操作
 
     private func loadVersion() {
         appVersion = MusicCore.appVersion()
     }
 
-    private func importSource() {
-        guard !sourceJson.isEmpty else {
-            resultMessage = "请先粘贴音源 JSON"
-            resultOk = false
-            return
+    private func loadSources() async {
+        do {
+            sources = try await MusicCore.listSourcesOrdered()
+        } catch {
+            sources = []
         }
+    }
+
+    private func canMove(_ source: SourceInfo, up: Bool) -> Bool {
+        guard let idx = sources.firstIndex(where: { $0.id == source.id }) else { return false }
+        return up ? idx > 0 : idx < sources.count - 1
+    }
+
+    /// 上移 / 下移：交换后调用 reorderSources
+    private func moveSource(_ source: SourceInfo, up: Bool) {
+        guard let idx = sources.firstIndex(where: { $0.id == source.id }) else { return }
+        let target = up ? idx - 1 : idx + 1
+        guard target >= 0, target < sources.count else { return }
+        sources.swapAt(idx, target)
+        let orderedIds = sources.map { $0.id }
         Task {
             do {
-                let resp = try await MusicCore.importSource(sourceJson)
-                resultMessage = resp
-                resultOk = true
+                try await MusicCore.reorderSources(orderedIds: orderedIds)
             } catch {
-                resultMessage = "（占位）导入失败：\(error.localizedDescription)"
-                resultOk = false
+                importErrorMessage = "排序失败：\(error.localizedDescription)"
+                await loadSources()
             }
         }
     }
+
+    /// .onMove 拖动排序：调整数组后调用 reorderSources
+    private func moveFromOffsets(from source: IndexSet, to destination: Int) {
+        sources.move(fromOffsets: source, toOffset: destination)
+        let orderedIds = sources.map { $0.id }
+        Task {
+            do {
+                try await MusicCore.reorderSources(orderedIds: orderedIds)
+            } catch {
+                importErrorMessage = "排序失败：\(error.localizedDescription)"
+                await loadSources()
+            }
+        }
+    }
+
+    /// 开关：乐观更新本地状态，失败回退
+    private func toggleSource(_ source: SourceInfo, enabled: Bool) {
+        guard let idx = sources.firstIndex(where: { $0.id == source.id }) else { return }
+        sources[idx].enabled = enabled
+        Task {
+            do {
+                try await MusicCore.setSourceEnabled(id: source.id, enabled: enabled)
+            } catch {
+                if let idx = sources.firstIndex(where: { $0.id == source.id }) {
+                    sources[idx].enabled = !enabled
+                }
+                importErrorMessage = "更新开关失败：\(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// 删除：确认后调用 deleteSource
+    private func performDelete(_ source: SourceInfo) {
+        Task {
+            do {
+                try await MusicCore.deleteSource(id: source.id)
+                sources.removeAll { $0.id == source.id }
+            } catch {
+                importErrorMessage = "删除失败：\(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// 文件导入：读取 JSON → importSourceFromJson → 刷新列表
+    private func handleFileImport(_ result: Result<URL, Error>) async {
+        switch result {
+        case .success(let url):
+            let didStart = url.startAccessingSecurityScopedResource()
+            defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let data = try Data(contentsOf: url)
+                let jsonStr = String(data: data, encoding: .utf8) ?? ""
+                guard !jsonStr.isEmpty else {
+                    importErrorMessage = "文件内容为空或非 UTF-8 文本"
+                    return
+                }
+                _ = try await MusicCore.importSourceFromJson(jsonStr)
+                await loadSources()
+            } catch {
+                importErrorMessage = "导入失败：\(error.localizedDescription)"
+            }
+        case .failure(let error):
+            importErrorMessage = "文件选择失败：\(error.localizedDescription)"
+        }
+    }
+}
+
+// MARK: - SourceTypeTag
+/// 来源标签：json=nghPrimary / community=nghWarning / local=nghSuccess
+private struct SourceTypeTag: View {
+    let sourceType: String
+    private var color: Color {
+        switch sourceType {
+        case "json": return Color.nghPrimary
+        case "community": return Color.nghWarning
+        case "local": return Color.nghSuccess
+        default: return Color.nghTextTertiary
+        }
+    }
+    var body: some View {
+        Text(sourceType)
+            .font(.caption2)
+            .foregroundColor(.white)
+            .padding(.horizontal, NghSpacing.s2)
+            .padding(.vertical, 2)
+            .background(color)
+            .clipShape(Capsule())
+    }
+}
+
+// MARK: - SourceDetailSheet
+/// 音源详情：name / id / version / source_type / priority / enabled / description
+private struct SourceDetailSheet: View {
+    let source: SourceInfo
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    detailRow(title: "名称", value: source.name)
+                    detailRow(title: "ID", value: source.id)
+                    detailRow(title: "版本", value: source.version)
+                    detailRow(title: "类型", value: source.sourceType)
+                    detailRow(title: "优先级", value: "\(source.priority)")
+                    detailRow(title: "状态", value: source.enabled ? "已启用" : "已禁用")
+                } header: {
+                    Text("基本信息")
+                }
+                .listRowBackground(Color.nghSurface)
+
+                Section {
+                    Text(source.description.isEmpty ? "（无描述）" : source.description)
+                        .font(.subheadline)
+                        .foregroundColor(Color.nghTextSecondary)
+                } header: {
+                    Text("描述")
+                }
+                .listRowBackground(Color.nghSurface)
+            }
+            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Color.nghBackground)
+            .navigationTitle("音源详情")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func detailRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title).foregroundColor(Color.nghTextSecondary)
+            Spacer()
+            Text(value)
+                .foregroundColor(Color.nghText)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+    }
+}
+
+#Preview {
+    SettingsView()
 }

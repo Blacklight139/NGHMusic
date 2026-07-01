@@ -66,8 +66,24 @@ export interface SearchResult {
 export interface Album { id: string; source_id: string; name: string; artists: string[]; cover_url?: string; song_ids: string[]; }
 export interface Artist { id: string; source_id: string; name: string; avatar_url?: string; song_ids: string[]; }
 
+// 音源信息（与 core SourceManager SourceInfo 对齐：id/name/version/enabled/sourceType/priority/description）
+export interface SourceInfo {
+  id: string;
+  name: string;
+  version: string;
+  enabled: boolean;
+  sourceType: string; // 'json' | 'community' | 'local'
+  priority: number;
+  description: string;
+}
+
 // 标记 NAPI 模块是否可用（占位：默认 false，链接 .so 后改为 true）
 const NAPI_ENABLED = false;
+
+// 脚手架占位：NAPI 未链接时使用的内存音源列表，便于音源管理 UI 在未链接 .so 时也可演示/验证。
+// 链接 music-core 后由核心 SourceManager 真正管理，本数组不再使用。
+const scaffoldSources: SourceInfo[] = [];
+let scaffoldPrioritySeq = 0;
 
 // NAPI 导出符号引用（实际启用后取消注释）
 // import * as musicCore from 'libmusiccore.so';
@@ -81,12 +97,86 @@ export class MusicCoreBridge {
     return '0.1.0-scaffold';
   }
 
-  /** 导入音源 JSON */
+  /** 导入音源 JSON（旧入口，返回提示文本，保留以兼容） */
   static importSource(json: string): string {
     if (NAPI_ENABLED) {
       // return musicCore.importSource(json);
     }
     return `（占位）音源 JSON 已接收，长度 ${json.length} 字符；链接 music-core 后生效`;
+  }
+
+  /** 列出全部音源（按 priority 升序） */
+  static listSourcesOrdered(): SourceInfo[] {
+    if (NAPI_ENABLED) {
+      // return musicCore.listSourcesOrdered();
+    }
+    return scaffoldSources.slice().sort((a: SourceInfo, b: SourceInfo) => a.priority - b.priority);
+  }
+
+  /** 更新指定音源优先级 */
+  static updateSourcePriority(id: string, newPriority: number): void {
+    if (NAPI_ENABLED) {
+      // musicCore.updateSourcePriority(id, newPriority);
+      return;
+    }
+    const s = scaffoldSources.find((x: SourceInfo) => x.id === id);
+    if (s) { s.priority = newPriority; }
+  }
+
+  /** 按 orderedIds 顺序重排全部音源（下标即新 priority） */
+  static reorderSources(orderedIds: string[]): void {
+    if (NAPI_ENABLED) {
+      // musicCore.reorderSources(orderedIds);
+      return;
+    }
+    orderedIds.forEach((id: string, idx: number) => {
+      const s = scaffoldSources.find((x: SourceInfo) => x.id === id);
+      if (s) { s.priority = idx; }
+    });
+  }
+
+  /** 删除指定音源 */
+  static deleteSource(id: string): void {
+    if (NAPI_ENABLED) {
+      // musicCore.deleteSource(id);
+      return;
+    }
+    const idx = scaffoldSources.findIndex((x: SourceInfo) => x.id === id);
+    if (idx >= 0) { scaffoldSources.splice(idx, 1); }
+  }
+
+  /** 启用/禁用指定音源 */
+  static setSourceEnabled(id: string, enabled: boolean): void {
+    if (NAPI_ENABLED) {
+      // musicCore.setSourceEnabled(id, enabled);
+      return;
+    }
+    const s = scaffoldSources.find((x: SourceInfo) => x.id === id);
+    if (s) { s.enabled = enabled; }
+  }
+
+  /** 由 JSON 字符串导入音源，返回新建的 SourceInfo；失败返回 null */
+  static importSourceFromJson(json: string): SourceInfo | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.importSourceFromJson(json);
+    }
+    try {
+      const obj = JSON.parse(json) as Record<string, Object>;
+      const rawType = obj['source_type'] ?? obj['sourceType'];
+      const info: SourceInfo = {
+        id: String(obj['id'] ?? `src_${Date.now()}`),
+        name: String(obj['name'] ?? '未命名音源'),
+        version: String(obj['version'] ?? '1.0.0'),
+        enabled: Boolean(obj['enabled'] ?? true),
+        sourceType: rawType !== undefined ? String(rawType) : 'json',
+        priority: scaffoldPrioritySeq++,
+        description: String(obj['description'] ?? ''),
+      };
+      scaffoldSources.push(info);
+      return info;
+    } catch (e) {
+      return null;
+    }
   }
 
   /** 聚合搜索 */

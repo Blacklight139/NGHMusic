@@ -18,11 +18,15 @@ struct PlaylistView: View {
             if songs.isEmpty {
                 EmptyState(text: "播放列表为空，去搜索添加歌曲吧")
             } else {
-                VStack(spacing: AppTheme.space2) {
+                VStack(spacing: NghSpacing.s3) {
                     ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                        SongRow(index: index + 1, song: song)
+                        Button { /* press 反馈，暂无跳转 */ } label: { SongRow(index: index + 1, song: song) }
+                            .nghPressableStyle()
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
+                // iOS 15+：列表项出现时 staggered fade-in。
+                .animation(.easeOut(duration: 0.3), value: songs.count)
             }
         }
     }

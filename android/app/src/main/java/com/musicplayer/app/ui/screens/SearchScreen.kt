@@ -1,11 +1,15 @@
-// 职责：搜索屏幕，搜索栏 + 结果列表，简约风格占位。
+// 职责：搜索屏幕，搜索栏 + 结果列表，豆包风格 Card 列表。
 // 对齐桌面端 pages/search.js：调用 MusicCoreBridge.search。
 
 package com.musicplayer.app.ui.screens
 
-import androidx.compose.foundation.border
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,10 +44,15 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(NghDimensions.spacing4)
+    ) {
         Text("搜索", style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
-        Text("跨音源聚合检索", style = MaterialTheme.typography.labelMedium, color = TextMuted)
-        Spacer(Modifier.height(16.dp))
+        Text("跨音源聚合检索", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        Spacer(Modifier.height(NghDimensions.spacing4))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
@@ -51,10 +60,10 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
                 onValueChange = { keyword = it },
                 placeholder = { Text("输入歌曲 / 艺术家 / 专辑") },
                 modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(NghDimensions.radiusSm),
                 singleLine = true
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(NghDimensions.spacing2))
             Button(
                 onClick = {
                     if (keyword.isBlank()) return@Button
@@ -63,44 +72,57 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
                 colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
                 Icon(Icons.Filled.Search, null)
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(NghDimensions.spacing1))
                 Text("搜索")
             }
         }
 
         if (loading) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(NghDimensions.spacing4))
             CircularProgressIndicator(color = Primary)
         }
         error?.let {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(NghDimensions.spacing2))
             Text(it, color = Danger, fontSize = 12.sp)
         }
 
-        Spacer(Modifier.height(16.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Spacer(Modifier.height(NghDimensions.spacing4))
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(NghDimensions.spacing3)) {
             itemsIndexed(songs) { i, song -> SongRowItem(i + 1, song) }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SongRowItem(index: Int, song: Song) {
-    Row(
+fun LazyItemScope.SongRowItem(index: Int, song: Song) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Border, RoundedCornerShape(8.dp))
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .animateItemPlacement(tween(200, easing = FastOutSlowInEasing))
+            .nghClickableScale { },
+        shape = RoundedCornerShape(NghDimensions.radiusMd),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Text("$index", color = TextMuted, fontSize = 12.sp, modifier = Modifier.width(24.dp))
-        Spacer(Modifier.width(8.dp))
-        Column(Modifier.weight(1f)) {
-            Text(song.title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
-            Text(song.artists.joinToString(" / "),
-                style = MaterialTheme.typography.labelMedium, color = TextMuted)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(NghDimensions.spacing4),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("$index", color = TextTertiary, fontSize = 12.sp, modifier = Modifier.width(24.dp))
+            Spacer(Modifier.width(NghDimensions.spacing2))
+            Column(Modifier.weight(1f)) {
+                Text(song.title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                Text(
+                    song.artists.joinToString(" / "),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary
+                )
+            }
+            Spacer(Modifier.width(NghDimensions.spacing2))
+            AssistChip(onClick = {}, label = { Text("在线", fontSize = 11.sp) })
         }
-        Spacer(Modifier.width(8.dp))
-        AssistChip(onClick = {}, label = { Text("在线", fontSize = 11.sp) })
     }
 }

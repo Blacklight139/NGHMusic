@@ -26,6 +26,25 @@ import Foundation
 
 enum MusicCoreError: Error { case bridgeUnavailable(String) }
 
+// MARK: - SourceInfo（音源信息，对应 Rust SourceInfo）
+// 字段与 music_core.udl 中 SourceInfo dictionary 对齐（snake_case → camelCase 由 UniFFI 生成）。
+// 脚手架阶段（MusicCoreFFI 未链接）作为占位模型；UniFFI 启用后由生成代码替换。
+struct SourceInfo: Identifiable, Equatable, Codable {
+    let id: String
+    var name: String
+    var version: String
+    var enabled: Bool
+    var sourceType: String        // json / community / local
+    var priority: Int32
+    var description: String
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, version, enabled
+        case sourceType = "source_type"
+        case priority, description
+    }
+}
+
 enum MusicCore {
     /// 返回核心库版本号
     static func appVersion() -> String {
@@ -74,6 +93,81 @@ enum MusicCore {
         return try MusicCoreFFI.play(songId: songId)
         #else
         throw MusicCoreError.bridgeUnavailable("music-core 未链接，播放不可用")
+        #endif
+    }
+
+    // MARK: - 音源管理（LXMusic 风格）
+    // 对应 music_core.udl 中 list_sources_ordered / update_source_priority /
+    // reorder_sources / delete_source / set_source_enabled / import_source_from_json。
+    // UniFFI 生成后函数名形如 MusicCoreFFI.listSourcesOrdered()，
+    // 参数名 camelCase（newPriority / orderedIds / jsonStr）。
+
+    /// 列出所有音源（按优先级升序）
+    static func listSourcesOrdered() async throws -> [SourceInfo] {
+        #if canImport(MusicCoreFFI)
+        return try MusicCoreFFI.listSourcesOrdered()
+        #else
+        // 占位：返回示例音源以便 UI 验证（链接 music-core 后替换为真实数据）
+        return [
+            SourceInfo(id: "demo-json", name: "示例在线音源", version: "1.0.0",
+                       enabled: true, sourceType: "json", priority: 10,
+                       description: "脚手架占位音源（json），链接核心库后替换为真实数据"),
+            SourceInfo(id: "demo-community", name: "社区音源示例", version: "0.3.2",
+                       enabled: false, sourceType: "community", priority: 20,
+                       description: "脚手架占位音源（community）"),
+            SourceInfo(id: "demo-local", name: "本地音源示例", version: "1.0.0",
+                       enabled: true, sourceType: "local", priority: 30,
+                       description: "脚手架占位音源（local）"),
+        ]
+        #endif
+    }
+
+    /// 更新单个音源优先级
+    static func updateSourcePriority(id: String, newPriority: Int32) async throws {
+        #if canImport(MusicCoreFFI)
+        try MusicCoreFFI.updateSourcePriority(id: id, newPriority: newPriority)
+        #else
+        // 占位：no-op
+        #endif
+    }
+
+    /// 按给定 id 顺序重排音源
+    static func reorderSources(orderedIds: [String]) async throws {
+        #if canImport(MusicCoreFFI)
+        try MusicCoreFFI.reorderSources(orderedIds: orderedIds)
+        #else
+        // 占位：no-op
+        #endif
+    }
+
+    /// 删除指定音源
+    static func deleteSource(id: String) async throws {
+        #if canImport(MusicCoreFFI)
+        try MusicCoreFFI.deleteSource(id: id)
+        #else
+        // 占位：no-op
+        #endif
+    }
+
+    /// 启用 / 禁用指定音源
+    static func setSourceEnabled(id: String, enabled: Bool) async throws {
+        #if canImport(MusicCoreFFI)
+        try MusicCoreFFI.setSourceEnabled(id: id, enabled: enabled)
+        #else
+        // 占位：no-op
+        #endif
+    }
+
+    /// 从 JSON 字符串导入音源，返回导入后的 SourceInfo
+    static func importSourceFromJson(_ json: String) async throws -> SourceInfo {
+        #if canImport(MusicCoreFFI)
+        return try MusicCoreFFI.importSourceFromJson(jsonStr: json)
+        #else
+        // 占位：模拟导入成功
+        return SourceInfo(id: "imported-\(Int(Date().timeIntervalSince1970))",
+                          name: "已导入音源", version: "1.0.0", enabled: true,
+                          sourceType: "json", priority: 999,
+                          description: "脚手架占位：JSON 长度 \(json.count) 字符")
         #endif
     }
 }

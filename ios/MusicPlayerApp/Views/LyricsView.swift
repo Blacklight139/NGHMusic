@@ -17,12 +17,12 @@ struct LyricsView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: AppTheme.space3) {
+                VStack(spacing: NghSpacing.s3) {
                     ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                         Text(line.text)
                             .font(.body)
                             .fontWeight(index == currentIndex ? .semibold : .regular)
-                            .foregroundColor(index == currentIndex ? AppTheme.text : AppTheme.textMuted)
+                            .foregroundColor(index == currentIndex ? Color.nghPrimary : Color.nghTextTertiary)
                             .scaleEffect(index == currentIndex ? 1.04 : 1)
                             .animation(.easeInOut(duration: 0.18), value: currentIndex)
                             .id(index)
@@ -31,10 +31,10 @@ struct LyricsView: View {
                             }
                     }
                 }
-                .padding(.vertical, AppTheme.space6)
+                .padding(.vertical, NghSpacing.s7)
                 .frame(maxWidth: .infinity)
             }
-            .background(AppTheme.bgAlt)
+            .background(Color.nghBackground)
             .onChange(of: player.position) { newValue in
                 let idx = lines.lastIndex { line in
                     (line.timeMs ?? 0) <= newValue

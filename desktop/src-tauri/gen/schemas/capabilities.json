@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"主窗口默认能力：允许访问核心 API。应用自定义 command 默认可被前端调用，无需在此声明。","local":true,"windows":["main"],"permissions":["core:default"]}}

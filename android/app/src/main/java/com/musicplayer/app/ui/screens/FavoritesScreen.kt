@@ -1,13 +1,19 @@
-// 职责：收藏屏幕，收藏分组卡片网格，简约风格占位。
+// 职责：收藏屏幕，收藏分组卡片网格，豆包风格 Card + 统一空状态。
 
 package com.musicplayer.app.ui.screens
 
-import androidx.compose.foundation.border
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -28,38 +34,52 @@ fun FavoritesScreen(player: PlayerManager = viewModel()) {
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(NghDimensions.spacing4)
+    ) {
         Text("收藏", style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
-        Text("多分组管理，支持导入/导出",
-            style = MaterialTheme.typography.labelMedium, color = TextMuted)
-        Spacer(Modifier.height(16.dp))
+        Text(
+            "多分组管理，支持导入/导出",
+            style = MaterialTheme.typography.labelMedium,
+            color = TextSecondary
+        )
+        Spacer(Modifier.height(NghDimensions.spacing4))
 
         if (groups.isEmpty()) {
-            EmptyState("还没有收藏分组，点击右上角创建")
+            EmptyState("还没有收藏分组", "点击右上角创建", icon = Icons.Filled.FavoriteBorder)
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 160.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(NghDimensions.spacing3),
+                horizontalArrangement = Arrangement.spacedBy(NghDimensions.spacing3)
             ) {
                 items(groups) { g ->
-                    Card(title = g.name, subtitle = "${g.songIds.size} 首")
+                    GroupCard(title = g.name, subtitle = "${g.songIds.size} 首")
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Card(title: String, subtitle: String) {
-    Column(
+fun LazyGridItemScope.GroupCard(title: String, subtitle: String) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Border, RoundedCornerShape(8.dp))
-            .padding(16.dp)
+            .animateItemPlacement(tween(200, easing = FastOutSlowInEasing))
+            .nghClickableScale { },
+        shape = RoundedCornerShape(NghDimensions.radiusMd),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Text(title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
-        Spacer(Modifier.height(2.dp))
-        Text(subtitle, style = MaterialTheme.typography.labelMedium, color = TextMuted)
+        Column(Modifier.padding(NghDimensions.spacing4)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+            Spacer(Modifier.height(NghDimensions.spacing1))
+            Text(subtitle, style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        }
     }
 }

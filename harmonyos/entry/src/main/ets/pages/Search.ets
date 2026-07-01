@@ -1,4 +1,4 @@
-// 职责：搜索页 ArkUI 组件，搜索栏 + 结果列表，简约风格占位。
+// 职责：搜索页 ArkUI 组件，搜索栏 + 结果列表（卡片化，豆包风格 ngh_* token）。
 // 对齐桌面端 pages/search.js：调用 MusicCoreBridge.search。
 
 import { MusicCoreBridge, Song } from '../bridge/MusicCoreBridge';
@@ -6,6 +6,7 @@ import { MusicCoreBridge, Song } from '../bridge/MusicCoreBridge';
 @Component
 export struct SearchPage {
   @State keyword: string = '';
+  @State pressedId: string = '';
   @State songs: Array<Song> = [
     {
       id: 's1', source_id: 'demo', title: '示例歌曲一', artists: ['艺术家A'],
@@ -21,8 +22,8 @@ export struct SearchPage {
   build() {
     Column() {
       Text('搜索').fontSize(22).fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_primary'))
-      Text('跨音源聚合检索').fontSize(12).fontColor($r('app.color.text_muted'))
+        .fontColor($r('app.color.ngh_text_primary'))
+      Text('跨音源聚合检索').fontSize(12).fontColor($r('app.color.ngh_text_secondary'))
         .margin({ top: 2 })
 
       Row() {
@@ -30,51 +31,82 @@ export struct SearchPage {
           .layoutWeight(1)
           .height(40)
           .borderRadius(8)
-          .backgroundColor($r('app.color.bg'))
-          .border({ width: 1, color: $r('app.color.border') })
+          .backgroundColor($r('app.color.ngh_surface'))
+          .border({ width: 1, color: $r('app.color.ngh_border') })
           .onChange((v: string) => { this.keyword = v; })
         Button('搜索')
           .margin({ left: 8 })
-          .backgroundColor($r('app.color.primary'))
+          .backgroundColor($r('app.color.ngh_primary'))
           .onClick(() => this.doSearch())
       }
       .margin({ top: 16 })
 
       Scroll() {
         Column() {
-          ForEach(this.songs, (song: Song, i: number) => {
-            this.SongRow(i + 1, song)
-          }, (song: Song) => song.id)
+          if (this.songs.length === 0) {
+            this.EmptyState()
+          } else {
+            ForEach(this.songs, (song: Song, i: number) => {
+              this.SongRow(i + 1, song)
+            }, (song: Song) => song.id)
+          }
         }
       }
       .layoutWeight(1).margin({ top: 16 })
     }
     .width('100%').height('100%').padding(16)
-    .backgroundColor($r('app.color.bg_alt'))
+    .backgroundColor($r('app.color.ngh_background'))
   }
 
   @Builder
   SongRow(index: number, song: Song) {
     Row() {
-      Text(`${index}`).fontSize(12).fontColor($r('app.color.text_muted')).width(24)
+      Text(`${index}`).fontSize(12).fontColor($r('app.color.ngh_text_tertiary')).width(24)
       Column() {
         Text(song.title).fontSize(14).fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.text_primary'))
+          .fontColor($r('app.color.ngh_text_primary'))
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(song.artists.join(' / ')).fontSize(11).fontColor($r('app.color.text_muted'))
+        Text(song.artists.join(' / ')).fontSize(11).fontColor($r('app.color.ngh_text_secondary'))
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
       }.layoutWeight(1).margin({ left: 8 })
-      Text('在线').fontSize(11).fontColor($r('app.color.text_muted'))
+      Text('在线').fontSize(11).fontColor($r('app.color.ngh_text_secondary'))
         .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-        .backgroundColor($r('app.color.bg_alt'))
+        .backgroundColor($r('app.color.ngh_surface_alt'))
         .borderRadius(999)
-        .border({ width: 1, color: $r('app.color.border') })
     }
-    .width('100%').padding(12)
-    .backgroundColor($r('app.color.bg'))
-    .borderRadius(8)
-    .border({ width: 1, color: $r('app.color.border') })
-    .margin({ bottom: 8 })
+    .width('100%').padding(16)
+    .backgroundColor($r('app.color.ngh_surface'))
+    .borderRadius(12)
+    .border({ width: 1, color: $r('app.color.ngh_border') })
+    .shadow({ radius: 8, color: '#14000000', offsetX: 0, offsetY: 2 })
+    .margin({ bottom: 12 })
+    .onTouch((event: TouchEvent) => {
+      if (event.type === TouchType.Down) {
+        this.pressedId = song.id;
+      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+        this.pressedId = '';
+      }
+    })
+    .scale(this.pressedId === song.id ? { x: 0.97, y: 0.97 } : { x: 1, y: 1 })
+    .animation({ duration: 150, curve: Curve.EaseOut })
+    .transition({ type: TransitionType.All, opacity: 0, translate: { y: 12 } })
+  }
+
+  @Builder
+  EmptyState() {
+    Column() {
+      SymbolGlyph($r('sys.symbol.magnifyingglass'))
+        .fontSize(40)
+        .fontColor([$r('app.color.ngh_text_tertiary')])
+      Text('暂无搜索结果').fontSize(14).fontWeight(FontWeight.Medium)
+        .fontColor($r('app.color.ngh_text_tertiary'))
+        .margin({ top: 12 })
+      Text('试试输入歌曲 / 艺术家 / 专辑').fontSize(12)
+        .fontColor($r('app.color.ngh_text_tertiary'))
+        .margin({ top: 4 })
+    }
+    .width('100%').padding({ top: 64, bottom: 64 })
+    .alignItems(HorizontalAlign.Center)
   }
 
   private doSearch(): void {

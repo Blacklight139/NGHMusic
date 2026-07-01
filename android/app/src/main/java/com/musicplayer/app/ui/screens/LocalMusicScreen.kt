@@ -1,10 +1,13 @@
-// 职责：本地音乐屏幕，按歌曲/专辑/艺术家/文件夹浏览，简约风格占位。
+// 职责：本地音乐屏幕，按歌曲/专辑/艺术家/文件夹浏览，豆包风格 Card 列表 + 统一空状态。
 
 package com.musicplayer.app.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,10 +37,15 @@ fun LocalMusicScreen(player: PlayerManager = viewModel()) {
     var filter by remember { mutableIntStateOf(0) }
     val filters = listOf("歌曲", "专辑", "艺术家", "文件夹")
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+            .padding(NghDimensions.spacing4)
+    ) {
         Text("本地音乐", style = MaterialTheme.typography.headlineSmall, color = TextPrimary)
-        Text("扫描本地目录并播放", style = MaterialTheme.typography.labelMedium, color = TextMuted)
-        Spacer(Modifier.height(16.dp))
+        Text("扫描本地目录并播放", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+        Spacer(Modifier.height(NghDimensions.spacing4))
 
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             filters.forEachIndexed { i, label ->
@@ -49,11 +57,11 @@ fun LocalMusicScreen(player: PlayerManager = viewModel()) {
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(NghDimensions.spacing4))
         if (songs.isEmpty()) {
-            EmptyState("尚未扫描本地音乐，前往设置添加目录")
+            EmptyState("尚未扫描本地音乐", "前往设置添加目录", icon = Icons.Filled.LibraryMusic)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(NghDimensions.spacing3)) {
                 itemsIndexed(songs) { i, song -> SongRowItem(i + 1, song) }
             }
         }

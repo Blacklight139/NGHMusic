@@ -60,3 +60,19 @@ data class Leaderboard(
     val coverUrl: String? = null,
     val songs: List<Song>
 )
+
+/**
+ * 音源信息，与 music-core（core/src/source_manager.rs）SourceInfo 对齐。
+ * sourceType 取值："json"（用户导入）/ "community"（社区）/ "local"（本地）。
+ * 说明：UniFFI 生成 Kotlin 绑定后会生成等价类型（com.musicplayer.core.SourceInfo），
+ *       本 data class 为脚手架占位，字段与核心保持一致便于 UI 在绑定生成前编译。
+ */
+data class SourceInfo(
+    val id: String,
+    val name: String,
+    val version: String,
+    val enabled: Boolean,
+    val sourceType: String,
+    val priority: Int,
+    val description: String? = null
+)
