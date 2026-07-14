@@ -13,17 +13,13 @@ struct PlaylistView: View {
             if player.queue.isEmpty {
                 EmptyState(text: "播放列表为空，去搜索添加歌曲吧")
             } else {
-                VStack(spacing: NghSpacing.s3) {
+                // Linear 风格：spacing 0，每行自带底部分割线，当前曲目用主色文字高亮（无描边）。
+                VStack(spacing: 0) {
                     ForEach(Array(player.queue.enumerated()), id: \.element.id) { index, song in
                         Button {
                             player.play(song: song, in: player.queue)
                         } label: {
-                            SongRow(index: index + 1, song: song)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: NghRadius.md, style: .continuous)
-                                        .strokeBorder(Color.nghPrimary, lineWidth: 1.5)
-                                        .opacity(isCurrent(song) ? 1 : 0)
-                                )
+                            SongRow(index: index + 1, song: song, isCurrent: isCurrent(song))
                         }
                         .nghPressableStyle()
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -40,6 +36,7 @@ struct PlaylistView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, NghSpacing.s3)
                         }
+                        .padding(.top, NghSpacing.s4)
                     }
                 }
                 // iOS 15+：列表项出现时 staggered fade-in。

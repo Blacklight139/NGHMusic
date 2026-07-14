@@ -36,21 +36,21 @@ struct LyricsView: View {
         HStack(spacing: 12) {
             Image(systemName: "music.note")
                 .font(.title3)
-                .foregroundColor(.accentColor)
+                .foregroundColor(Color.nghPrimary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(player.currentSong?.title ?? "未在播放")
                     .font(.headline)
                 Text(player.currentSong?.artistsDisplay ?? "—")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.nghTextSecondary)
             }
             Spacer()
             Button(action: loadLyric) {
                 Label("刷新", systemImage: "arrow.clockwise")
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.vertical, NghSpacing.s3)
     }
 
     private func lyricsList(_ lyric: Lyric) -> some View {
@@ -61,14 +61,14 @@ struct LyricsView: View {
                         Text(line.text)
                             .font(isActiveLine(idx, line, lyric) ? .title3 : .body)
                             .fontWeight(isActiveLine(idx, line, lyric) ? .semibold : .regular)
-                            .foregroundColor(isActiveLine(idx, line, lyric) ? .accentColor : .secondary)
+                            .foregroundColor(isActiveLine(idx, line, lyric) ? Color.nghPrimary : Color.nghTextSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 2)
                             .id(idx)
                     }
                 }
                 .padding(.horizontal, 24)
-                .padding(.vertical, 16)
+                .padding(.vertical, NghSpacing.s4)
             }
             .onChange(of: player.currentTime) { newTime in
                 if let idx = activeLineIndex(lyric, timeMs: UInt64(newTime * 1000)) {
@@ -83,7 +83,7 @@ struct LyricsView: View {
             ProgressView()
             Text("加载歌词…")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -92,12 +92,12 @@ struct LyricsView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
-                .foregroundColor(.orange)
+                .foregroundColor(Color.nghWarning)
             Text("歌词加载失败")
                 .font(.headline)
             Text(message)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }
@@ -108,12 +108,12 @@ struct LyricsView: View {
         VStack(spacing: 8) {
             Image(systemName: "text.quote")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
             Text("暂无歌词")
                 .font(.title3)
             Text("播放歌曲后将自动加载歌词")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

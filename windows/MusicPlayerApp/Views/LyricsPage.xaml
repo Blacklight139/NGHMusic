@@ -14,8 +14,7 @@
         <TextBlock
             Grid.Row="0"
             Text="歌词"
-            FontSize="28"
-            FontWeight="SemiBold" />
+            Style="{StaticResource NghPageTitleStyle}" />
 
         <StackPanel Grid.Row="1" Orientation="Vertical" Spacing="4">
             <TextBlock
@@ -26,7 +25,7 @@
             <TextBlock
                 x:Name="CurrentArtistText"
                 FontSize="12"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Foreground="{ThemeResource NghTextSecondaryBrush}"
                 Text="" />
         </StackPanel>
 
@@ -39,7 +38,7 @@
                 <TextBlock
                     Text="播放任意歌曲后此处将显示歌词"
                     FontSize="14"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Foreground="{ThemeResource NghTextSecondaryBrush}"
                     FontStyle="Italic" />
             </StackPanel>
         </ScrollViewer>

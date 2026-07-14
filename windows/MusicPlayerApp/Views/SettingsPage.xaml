@@ -10,8 +10,7 @@
 
             <TextBlock
                 Text="设置"
-                FontSize="28"
-                FontWeight="SemiBold" />
+                Style="{StaticResource NghPageTitleStyle}" />
 
             <!-- 音源导入（LXMusic 风格列表管理） -->
             <StackPanel Spacing="8">
@@ -19,7 +18,7 @@
                 <TextBlock
                     Text="导入音源 JSON 文件（标准 / 社区格式自动适配）"
                     FontSize="12"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    Foreground="{ThemeResource NghTextSecondaryBrush}" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <Button Click="ImportSourceButton_Click">
                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -40,7 +39,7 @@
                     ItemsSource="{x:Bind Sources, Mode=OneWay}"
                     SelectionMode="None"
                     BorderThickness="1"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderBrush="{ThemeResource NghBorderBrush}"
                     CornerRadius="4"
                     MinHeight="120">
                     <ListView.ItemTemplate>
@@ -57,13 +56,13 @@
                                     Grid.Column="0"
                                     Glyph="&#xE774;"
                                     FontSize="16"
-                                    Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    Foreground="{ThemeResource NghPrimaryBrush}" />
                                 <StackPanel Grid.Column="1" Spacing="2">
                                     <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" />
                                     <TextBlock
                                         Text="{x:Bind Id}"
                                         FontSize="11"
-                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        Foreground="{ThemeResource NghTextSecondaryBrush}" />
                                 </StackPanel>
                                 <TextBlock
                                     Grid.Column="2"
@@ -112,7 +111,7 @@
                     TextWrapping="Wrap"
                     MinHeight="80"
                     MaxWidth="800" />
-                <Button Click="AddProtocolButton_Click" Style="{StaticResource AccentButtonStyle}">
+                <Button Click="AddProtocolButton_Click" Style="{StaticResource NghPrimaryButtonStyle}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <FontIcon Glyph="&#xE710;" FontSize="14" />
                         <TextBlock Text="添加协议源" />
@@ -123,7 +122,7 @@
                     ItemsSource="{x:Bind ProtocolSources, Mode=OneWay}"
                     SelectionMode="None"
                     BorderThickness="1"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderBrush="{ThemeResource NghBorderBrush}"
                     CornerRadius="4"
                     MinHeight="80">
                     <ListView.ItemTemplate>
@@ -134,14 +133,14 @@
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <FontIcon Grid.Column="0" Glyph="&#xE753;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                <FontIcon Grid.Column="0" Glyph="&#xE753;" FontSize="16" Foreground="{ThemeResource NghPrimaryBrush}" />
                                 <StackPanel Grid.Column="1" Spacing="2">
                                     <TextBlock FontSize="14" FontWeight="SemiBold">
                                         <Run Text="{x:Bind Protocol}" />
                                         <Run Text=" · " />
                                         <Run Text="{x:Bind Id}" />
                                     </TextBlock>
-                                    <TextBlock Text="{x:Bind Root}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{x:Bind Root}" FontSize="11" Foreground="{ThemeResource NghTextSecondaryBrush}" />
                                 </StackPanel>
                                 <Button
                                     Grid.Column="2"
@@ -182,7 +181,7 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="关于" FontSize="18" FontWeight="SemiBold" />
                 <TextBlock Text="逆光音乐 (NGHMusic) · Windows 客户端" FontSize="13" />
-                <TextBlock x:Name="CoreVersionText" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock x:Name="CoreVersionText" FontSize="12" Foreground="{ThemeResource NghTextSecondaryBrush}" />
             </StackPanel>
 
         </StackPanel>

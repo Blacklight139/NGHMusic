@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:models="using:MusicPlayerApp.Models">
 
-    <Grid Padding="24" RowSpacing="16">
+    <Grid Padding="24" RowSpacing="16" Background="{ThemeResource NghBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -16,8 +16,7 @@
         <TextBlock
             Grid.Row="0"
             Text="搜索音乐"
-            FontSize="28"
-            FontWeight="SemiBold" />
+            Style="{StaticResource NghPageTitleStyle}" />
 
         <StackPanel
             Grid.Row="1"
@@ -32,7 +31,7 @@
             <Button
                 x:Name="SearchButton"
                 Content="搜索"
-                Style="{StaticResource AccentButtonStyle}"
+                Style="{StaticResource NghPrimaryButtonStyle}"
                 Click="SearchButton_Click" />
             <ProgressRing
                 x:Name="LoadingRing"
@@ -61,27 +60,23 @@
                             Grid.Column="0"
                             Glyph="&#xE8D6;"
                             FontSize="20"
-                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            Foreground="{ThemeResource NghPrimaryBrush}" />
                         <StackPanel
                             Grid.Column="1"
                             Spacing="2">
                             <TextBlock
                                 Text="{x:Bind Title}"
-                                FontSize="14"
-                                FontWeight="SemiBold"
-                                TextTrimming="CharacterEllipsis" />
+                                Style="{StaticResource NghSongTitleStyle}" />
                             <TextBlock
                                 Text="{x:Bind ArtistsText}"
-                                FontSize="12"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                TextTrimming="CharacterEllipsis" />
+                                Style="{StaticResource NghSongArtistStyle}" />
                         </StackPanel>
                         <TextBlock
                             Grid.Column="2"
                             Text="{x:Bind DurationText}"
                             FontSize="12"
                             VerticalAlignment="Center"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            Foreground="{ThemeResource NghTextTertiaryBrush}" />
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

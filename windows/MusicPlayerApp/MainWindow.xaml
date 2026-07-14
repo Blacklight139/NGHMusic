@@ -18,6 +18,7 @@
             PaneDisplayMode="Left"
             IsBackButtonVisible="Collapsed"
             PaneTitle="逆光音乐"
+            PaneBackground="{ThemeResource NghSidebarBrush}"
             OpenPaneLength="220"
             CompactPaneLength="48"
             SelectionChanged="NavView_SelectionChanged"
@@ -93,7 +94,7 @@
                 </NavigationViewItem>
             </NavigationView.FooterMenuItems>
 
-            <Frame x:Name="ContentFrame" Padding="0" />
+            <Frame x:Name="ContentFrame" Padding="0" Background="{ThemeResource NghBackgroundBrush}" />
         </NavigationView>
 
         <views:PlaybackBar Grid.Row="1" x:Name="BottomPlaybackBar" />

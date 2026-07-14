@@ -88,32 +88,32 @@ struct SettingsView: View {
             if sources.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "music.note.list")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.nghTextSecondary)
                     Text("尚未导入任何音源")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.nghTextSecondary)
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, NghSpacing.s3)
             } else {
                 VStack(spacing: 0) {
                     HStack {
                         Text("音源 ID / 名称")
                             .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.nghTextSecondary)
                         Spacer()
                         Text("优先级")
                             .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.nghTextSecondary)
                         Text("启用")
                             .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.nghTextSecondary)
                             .frame(width: 60)
                         Text("操作")
                             .font(.caption.weight(.semibold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.nghTextSecondary)
                             .frame(width: 80)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, NghSpacing.s3)
+                    .padding(.vertical, NghSpacing.s2)
                     Divider()
                     ForEach(sources) { src in
                         sourceRow(src)
@@ -133,12 +133,12 @@ struct SettingsView: View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(src.name).font(.body)
-                Text(src.id).font(.caption).foregroundColor(.secondary).monospaced()
+                Text(src.id).font(.caption).foregroundColor(Color.nghTextSecondary).monospaced()
             }
             Spacer()
             Text("\(src.priority)")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
                 .frame(width: 60)
             Toggle("", isOn: Binding(
                 get: { src.enabled },
@@ -159,13 +159,13 @@ struct SettingsView: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.plain)
-                .foregroundColor(.red)
+                .foregroundColor(Color.nghDanger)
                 .disabled(src.id == "local") // 本地音源受保护
             }
             .frame(width: 80)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, NghSpacing.s3)
+        .padding(.vertical, NghSpacing.s2)
     }
 
     private var pasteSheet: some View {
@@ -174,7 +174,7 @@ struct SettingsView: View {
             TextEditor(text: $pastedJson)
                 .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 240)
-                .padding(8)
+                .padding(NghSpacing.s2)
                 .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
                 .cornerRadius(8)
             HStack {
@@ -213,13 +213,13 @@ struct SettingsView: View {
             Text("关于").font(.title2.bold())
             HStack(spacing: 8) {
                 Image(systemName: "music.note")
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(Color.nghPrimary)
                 Text("逆光音乐 (NGHMusic)")
                     .font(.body)
             }
             Text("跨平台音乐播放器 · macOS 客户端")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
             HStack(spacing: 8) {
                 Button(action: fetchVersion) {
                     Label("查看核心版本", systemImage: "info.circle")

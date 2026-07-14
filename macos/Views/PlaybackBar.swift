@@ -12,42 +12,47 @@ struct PlaybackBar: View {
     @State private var dragValue: Double = 0
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: NghSpacing.s4) {
             currentSongInfo
             Divider().frame(height: 40)
             playbackControls
             Divider().frame(height: 40)
             progressSection
             Divider().frame(height: 40)
-            HStack(spacing: 12) {
+            HStack(spacing: NghSpacing.s3) {
                 modeButton
                 volumeSection
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.regularMaterial)
-        .overlay(Divider(), alignment: .top)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.vertical, NghSpacing.s2)
+        .background(Color.nghSurface)
+        .overlay(
+            Rectangle()
+                .fill(Color.nghBorder)
+                .frame(height: 1),
+            alignment: .top
+        )
     }
 
     // MARK: - 子视图
 
     /// 左侧：当前歌曲封面占位 + 标题 + 艺术家。
     private var currentSongInfo: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: NghSpacing.s3) {
             Image(systemName: "music.note")
                 .font(.title2)
                 .frame(width: 40, height: 40)
-                .background(Color.accentColor.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .foregroundColor(.accentColor)
+                .background(Color.nghPrimarySoft)
+                .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm))
+                .foregroundColor(Color.nghPrimary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(player.currentSong?.title ?? "未在播放")
                     .font(.body)
                     .lineLimit(1)
                 Text(player.currentSong?.artistsDisplay ?? "—")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.nghTextSecondary)
                     .lineLimit(1)
             }
             .frame(minWidth: 160, idealWidth: 200, maxWidth: 240, alignment: .leading)
@@ -56,7 +61,7 @@ struct PlaybackBar: View {
 
     /// 中间：上一首 / 播放暂停 / 下一首。
     private var playbackControls: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: NghSpacing.s5) {
             Button(action: player.previous) {
                 Image(systemName: "backward.fill")
                     .font(.title3)
@@ -67,6 +72,7 @@ struct PlaybackBar: View {
             Button(action: player.togglePlayPause) {
                 Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                     .font(.system(size: 30))
+                    .foregroundColor(Color.nghPrimary)
             }
             .buttonStyle(.plain)
             .disabled(player.currentSong == nil)
@@ -82,10 +88,10 @@ struct PlaybackBar: View {
 
     /// 进度条 + 时间显示。
     private var progressSection: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: NghSpacing.s2) {
             Text(player.currentTimeDisplay)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
                 .monospacedDigit()
                 .frame(width: 44, alignment: .trailing)
             Slider(value: Binding(
@@ -103,7 +109,7 @@ struct PlaybackBar: View {
             .disabled(player.duration <= 0)
             Text(player.durationDisplay)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
                 .monospacedDigit()
                 .frame(width: 44, alignment: .leading)
         }
@@ -122,10 +128,10 @@ struct PlaybackBar: View {
 
     /// 音量滑块。
     private var volumeSection: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: NghSpacing.s2) {
             Image(systemName: volumeIcon(for: player.volume))
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
             Slider(value: $player.volume, in: 0...1)
                 .frame(width: 80)
         }

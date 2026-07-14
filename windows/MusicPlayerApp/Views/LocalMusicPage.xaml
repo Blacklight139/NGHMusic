@@ -16,8 +16,7 @@
         <TextBlock
             Grid.Row="0"
             Text="本地音乐"
-            FontSize="28"
-            FontWeight="SemiBold" />
+            Style="{StaticResource NghPageTitleStyle}" />
 
         <StackPanel
             Grid.Row="1"
@@ -49,7 +48,7 @@
             <TextBlock
                 x:Name="ProgressText"
                 FontSize="13"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                Foreground="{ThemeResource NghTextSecondaryBrush}" />
         </StackPanel>
 
         <ListView
@@ -71,21 +70,19 @@
                             Grid.Column="0"
                             Glyph="&#xE8D6;"
                             FontSize="16"
-                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            Foreground="{ThemeResource NghPrimaryBrush}" />
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource NghSongTitleStyle}" />
                             <TextBlock
                                 Text="{x:Bind ArtistsText}"
-                                FontSize="12"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                TextTrimming="CharacterEllipsis" />
+                                Style="{StaticResource NghSongArtistStyle}" />
                         </StackPanel>
                         <TextBlock
                             Grid.Column="2"
                             Text="{x:Bind DurationText}"
                             FontSize="12"
                             VerticalAlignment="Center"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            Foreground="{ThemeResource NghTextSecondaryBrush}" />
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

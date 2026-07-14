@@ -93,7 +93,7 @@ struct NasView: View {
             // 健康检查
             HStack(spacing: 8) {
                 Image(systemName: healthSymbol)
-                    .foregroundColor(healthOk == true ? .green : (healthOk == false ? .red : .secondary))
+                    .foregroundColor(healthOk == true ? Color.nghSuccess : (healthOk == false ? Color.nghDanger : Color.nghTextSecondary))
                 Text(healthText)
                     .font(.body)
                 Spacer()
@@ -147,7 +147,7 @@ struct NasView: View {
                     Image(systemName: "arrow.clockwise")
                 }
             }
-            if feiniuLoading { ProgressView().padding(.vertical, 8) }
+            if feiniuLoading { ProgressView().padding(.vertical, NghSpacing.s2) }
             if feiniuFiles.isEmpty {
                 emptyState(symbol: "folder", text: "未列出文件", subtitle: "登录后点击刷新加载目录")
             } else {
@@ -169,23 +169,23 @@ struct NasView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: file.isDir ? "folder" : "music.note")
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(Color.nghPrimary)
                     .frame(width: 22)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(file.name).font(.body)
                     if let m = file.modified, !m.isEmpty {
-                        Text(m).font(.caption).foregroundColor(.secondary)
+                        Text(m).font(.caption).foregroundColor(Color.nghTextSecondary)
                     }
                 }
                 Spacer()
                 if !file.isDir {
                     Text(formatBytes(file.size))
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.nghTextSecondary)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, NghSpacing.s3)
+            .padding(.vertical, NghSpacing.s2)
         }
         .buttonStyle(.plain)
     }
@@ -215,19 +215,19 @@ struct NasView: View {
                 VStack(spacing: 0) {
                     HStack {
                         Text("协议 · id")
-                            .font(.caption.weight(.semibold)).foregroundColor(.secondary)
+                            .font(.caption.weight(.semibold)).foregroundColor(Color.nghTextSecondary)
                         Spacer()
                         Text("根")
-                            .font(.caption.weight(.semibold)).foregroundColor(.secondary)
+                            .font(.caption.weight(.semibold)).foregroundColor(Color.nghTextSecondary)
                             .frame(width: 120)
                         Text("占位")
-                            .font(.caption.weight(.semibold)).foregroundColor(.secondary)
+                            .font(.caption.weight(.semibold)).foregroundColor(Color.nghTextSecondary)
                             .frame(width: 60)
                         Text("操作")
-                            .font(.caption.weight(.semibold)).foregroundColor(.secondary)
+                            .font(.caption.weight(.semibold)).foregroundColor(Color.nghTextSecondary)
                             .frame(width: 80)
                     }
-                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .padding(.horizontal, NghSpacing.s3).padding(.vertical, NghSpacing.s2)
                     Divider()
                     ForEach(protocolSources) { src in
                         sourceRow(src)
@@ -255,15 +255,15 @@ struct NasView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(src.protocolName) · \(src.id)").font(.body)
                 if src.placeholder == true {
-                    Text("占位实现，浏览不可用").font(.caption).foregroundColor(.orange)
+                    Text("占位实现，浏览不可用").font(.caption).foregroundColor(Color.nghWarning)
                 }
             }
             Spacer()
             Text(src.root.isEmpty ? "/" : src.root)
-                .font(.caption).foregroundColor(.secondary)
+                .font(.caption).foregroundColor(Color.nghTextSecondary)
                 .frame(width: 120, alignment: .leading)
             Image(systemName: src.placeholder == true ? "exclamationmark.triangle" : "checkmark")
-                .foregroundColor(src.placeholder == true ? .orange : .green)
+                .foregroundColor(src.placeholder == true ? Color.nghWarning : Color.nghSuccess)
                 .frame(width: 60)
             HStack(spacing: 8) {
                 Button {
@@ -285,7 +285,7 @@ struct NasView: View {
             }
             .frame(width: 80)
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
+        .padding(.horizontal, NghSpacing.s3).padding(.vertical, NghSpacing.s2)
     }
 
     private func protocolBrowser(for src: ProtocolSource) -> some View {
@@ -308,7 +308,7 @@ struct NasView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
-                if protocolLoading { ProgressView().padding(.vertical, 8) }
+                if protocolLoading { ProgressView().padding(.vertical, NghSpacing.s2) }
                 if protocolEntries.isEmpty {
                     emptyState(symbol: "folder", text: "未列出条目", subtitle: "点击刷新加载目录")
                 } else {
@@ -333,12 +333,12 @@ struct NasView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: isDir ? "folder" : "music.note")
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(Color.nghPrimary)
                     .frame(width: 22)
                 Text(name).font(.body)
                 Spacer()
             }
-            .padding(.horizontal, 12).padding(.vertical, 8)
+            .padding(.horizontal, NghSpacing.s3).padding(.vertical, NghSpacing.s2)
         }
         .buttonStyle(.plain)
     }
@@ -347,11 +347,11 @@ struct NasView: View {
         VStack(spacing: 12) {
             Text("添加协议源").font(.headline)
             Text("粘贴协议源配置 JSON（参考 docs/api/protocol-api.md）")
-                .font(.caption).foregroundColor(.secondary)
+                .font(.caption).foregroundColor(Color.nghTextSecondary)
             TextEditor(text: $newSourceJson)
                 .font(.system(.body, design: .monospaced))
                 .frame(minHeight: 220)
-                .padding(8)
+                .padding(NghSpacing.s2)
                 .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
                 .cornerRadius(8)
             HStack {
@@ -374,9 +374,9 @@ struct NasView: View {
         VStack(spacing: 8) {
             Image(systemName: symbol)
                 .font(.system(size: 36))
-                .foregroundColor(.secondary)
-            Text(text).font(.body).foregroundColor(.secondary)
-            Text(subtitle).font(.caption).foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
+            Text(text).font(.body).foregroundColor(Color.nghTextSecondary)
+            Text(subtitle).font(.caption).foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 32)

@@ -50,8 +50,8 @@ struct LeaderboardView: View {
             }
             .disabled(selectedSourceId == nil)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.vertical, NghSpacing.s3)
     }
 
     @ViewBuilder
@@ -73,12 +73,12 @@ struct LeaderboardView: View {
         )) { lb in
             HStack(spacing: 12) {
                 Image(systemName: "chart.bar.xaxis")
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(Color.nghPrimary)
                 Text(lb.name)
                 Spacer()
                 Text("\(lb.songs.count)")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.nghTextSecondary)
             }
             .tag(lb.id)
         }
@@ -92,7 +92,7 @@ struct LeaderboardView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "music.note.list")
                         .font(.system(size: 48))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.nghTextSecondary)
                     Text("该榜单暂无歌曲")
                         .font(.title3)
                 }
@@ -105,29 +105,29 @@ struct LeaderboardView: View {
                                 Text("\(idx + 1)")
                                     .font(.headline)
                                     .frame(width: 28, alignment: .center)
-                                    .foregroundColor(idx < 3 ? .orange : .secondary)
+                                    .foregroundColor(idx < 3 ? Color.nghWarning : Color.nghTextSecondary)
                                 SongRow(song: song)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
                                         player.loadQueue(lb.songs, startIndex: idx)
                                     }
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, NghSpacing.s4)
                             .padding(.vertical, 4)
                             Divider().padding(.leading, 56)
                         }
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, NghSpacing.s2)
                 }
             }
         } else {
             VStack(spacing: 8) {
                 Image(systemName: "chart.bar")
                     .font(.system(size: 48))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.nghTextSecondary)
                 Text("选择左侧排行榜查看歌曲")
                     .font(.title3)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.nghTextSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -138,7 +138,7 @@ struct LeaderboardView: View {
             ProgressView()
             Text("加载中…")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -147,12 +147,12 @@ struct LeaderboardView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
-                .foregroundColor(.orange)
+                .foregroundColor(Color.nghWarning)
             Text("加载失败")
                 .font(.headline)
             Text(message)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }
@@ -163,12 +163,12 @@ struct LeaderboardView: View {
         VStack(spacing: 8) {
             Image(systemName: "chart.bar.xaxis")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
             Text("暂无排行榜")
                 .font(.title3)
             Text("请确保已启用音源且音源支持排行榜接口")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

@@ -31,31 +31,32 @@ struct PlaylistView: View {
                 player.loadQueue([], startIndex: 0)
             } label: {
                 Label("清空", systemImage: "trash")
+                    .foregroundColor(Color.nghDanger)
             }
             .disabled(player.queue.isEmpty)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.vertical, NghSpacing.s3)
     }
 
     private var queueList: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(Array(player.queue.enumerated()), id: \.element.id) { index, song in
-                    HStack(spacing: 12) {
+                    HStack(spacing: NghSpacing.s3) {
                         Image(systemName: index == player.currentIndex ? "play.circle.fill" : "music.note")
-                            .foregroundColor(index == player.currentIndex ? .accentColor : .secondary)
+                            .foregroundColor(index == player.currentIndex ? Color.nghPrimary : Color.nghTextSecondary)
                             .frame(width: 24)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(song.title).font(.body).lineLimit(1)
-                                .foregroundColor(index == player.currentIndex ? .accentColor : .primary)
-                            Text(song.artistsDisplay).font(.caption).foregroundColor(.secondary)
+                                .foregroundColor(index == player.currentIndex ? Color.nghPrimary : Color.nghText)
+                            Text(song.artistsDisplay).font(.caption).foregroundColor(Color.nghTextSecondary)
                         }
                         Spacer()
-                        Text(song.durationDisplay).font(.caption).foregroundColor(.secondary).monospacedDigit()
+                        Text(song.durationDisplay).font(.caption).foregroundColor(Color.nghTextSecondary).monospacedDigit()
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, NghSpacing.s4)
+                    .padding(.vertical, NghSpacing.s2)
                     .contentShape(Rectangle())
                     .onTapGesture { player.play(at: index) }
                     Divider().padding(.leading, 56)
@@ -65,15 +66,15 @@ struct PlaylistView: View {
     }
 
     private var emptyView: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: NghSpacing.s2) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextTertiary)
             Text("播放队列为空")
                 .font(.title3)
             Text("从搜索或排行榜中开始播放歌曲")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
