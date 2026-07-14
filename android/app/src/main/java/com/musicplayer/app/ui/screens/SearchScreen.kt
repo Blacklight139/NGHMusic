@@ -1,4 +1,4 @@
-// 职责：搜索屏幕，搜索栏 + 结果列表，豆包风格 Card 列表。
+// 职责：搜索屏幕，搜索栏 + 结果列表，豆包风格线性列表（无卡片，分隔线）。
 // 对齐桌面端 pages/search.js：调用 MusicRepository.search（跨音源聚合检索）。
 
 package com.musicplayer.app.ui.screens
@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,8 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.musicplayer.app.models.Song
 import com.musicplayer.app.models.SongOrigin
@@ -69,6 +70,8 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
     var error by remember { mutableStateOf<String?>(null) }
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    val playerState by player.state.collectAsState()
+    val currentSong = playerState.currentSong
 
     Column(
         modifier = Modifier
@@ -118,7 +121,7 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
         }
         error?.let {
             Spacer(Modifier.height(NghDimensions.spacing2))
-            Text(it, color = Danger, fontSize = 12.sp)
+            Text(it, color = Danger, style = MaterialTheme.typography.labelMedium)
         }
 
         Spacer(Modifier.height(NghDimensions.spacing4))
@@ -130,7 +133,8 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
                     SongRowItem(
                         index = i + 1,
                         song = song,
-                        onClick = { player.play(song, songs) }
+                        onClick = { player.play(song, songs) },
+                        isCurrent = song == currentSong
                     )
                 }
             }
@@ -162,7 +166,7 @@ fun LazyItemScope.SongRowItem(
                 "$index",
                 color = TextTertiary,
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.width(24.dp)
+                modifier = Modifier.width(NghDimensions.spacing6)
             )
             Spacer(Modifier.width(NghDimensions.spacing2))
             Box(
@@ -184,12 +188,13 @@ fun LazyItemScope.SongRowItem(
                 Text(
                     song.title,
                     style = MaterialTheme.typography.titleSmall,
-                    color = if (isCurrent) Primary else TextPrimary
+                    color = if (isCurrent) Primary else TextPrimary,
+                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium
                 )
                 Text(
                     song.artists.joinToString(" / "),
                     style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary
+                    color = if (isCurrent) Primary else TextSecondary
                 )
             }
             Spacer(Modifier.width(NghDimensions.spacing2))

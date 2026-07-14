@@ -132,7 +132,9 @@ public sealed class PlayerService : IDisposable
     public void ClearQueue()
     {
         _player.Pause();
+        var oldSource = _player.Source;
         _player.Source = null;
+        oldSource?.Dispose();
         _queue.Clear();
         _currentIndex = -1;
         CurrentSongChanged?.Invoke(this, null);
@@ -249,14 +251,24 @@ public sealed class PlayerService : IDisposable
     {
         if (_currentIndex < 0 || _currentIndex >= _queue.Count)
         {
+            var staleSource = _player.Source;
             _player.Source = null;
+            staleSource?.Dispose();
             return;
         }
 
-        var song = _queue[_currentIndex];
+        // 记录请求时的索引，await 恢复后检查是否仍为当前索引，
+        // 避免快速切歌时旧请求覆盖新请求（竞态条件）。
+        var requestedIndex = _currentIndex;
+        var song = _queue[requestedIndex];
         try
         {
             var url = await ResolvePlayableUrlAsync(song);
+            // await 期间索引可能已被 Next/Previous 等改变，放弃本次过期的请求
+            if (_currentIndex != requestedIndex)
+            {
+                return;
+            }
             if (string.IsNullOrEmpty(url))
             {
                 // 跳过无可用 URL 的曲目
@@ -264,9 +276,10 @@ public sealed class PlayerService : IDisposable
                 return;
             }
 
+            MediaSource? newSource;
             if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
             {
-                _player.Source = MediaSource.CreateFromUri(uri);
+                newSource = MediaSource.CreateFromUri(uri);
             }
             else
             {
@@ -275,19 +288,28 @@ public sealed class PlayerService : IDisposable
                 {
                     var file = await StorageFile.GetFileFromPathAsync(url);
                     var stream = await file.OpenAsync(FileAccessMode.Read);
-                    _player.Source = MediaSource.CreateFromStream(stream, file.ContentType);
+                    newSource = MediaSource.CreateFromStream(stream, file.ContentType);
                 }
                 catch
                 {
-                    _player.Source = MediaSource.CreateFromUri(new Uri(url, UriKind.RelativeOrAbsolute));
+                    newSource = MediaSource.CreateFromUri(new Uri(url, UriKind.RelativeOrAbsolute));
                 }
             }
+
+            // 替换并释放旧的 MediaSource，避免原生资源泄漏
+            var previousSource = _player.Source;
+            _player.Source = newSource;
+            previousSource?.Dispose();
+
             _player.Play();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[PlayerService] 播放失败: {ex.Message}");
-            Next();
+            if (_currentIndex == requestedIndex)
+            {
+                Next();
+            }
         }
 
         _ = PersistAsync();
@@ -384,6 +406,8 @@ public sealed class PlayerService : IDisposable
                 try
                 {
                     await timer.WaitForNextTickAsync(ct);
+                    // Dispose 可能在此 tick 期间执行，检查标志避免访问已释放的播放器
+                    if (_disposed) break;
                     if (IsPlaying)
                     {
                         PositionChanged?.Invoke(this, Position);
@@ -391,6 +415,11 @@ public sealed class PlayerService : IDisposable
                 }
                 catch (OperationCanceledException)
                 {
+                    break;
+                }
+                catch
+                {
+                    // 播放器可能在 Dispose 过程中被释放，安全退出定时循环
                     break;
                 }
             }
@@ -461,6 +490,9 @@ public sealed class PlayerService : IDisposable
         _player.PlaybackSession.PlaybackStateChanged -= OnPlaybackStateChanged;
         _player.MediaEnded -= OnMediaEnded;
         _player.MediaFailed -= OnMediaFailed;
+        // 释放当前 MediaSource 及播放器本身
+        _player.Source?.Dispose();
+        _player.Source = null;
         _player.Dispose();
     }
 

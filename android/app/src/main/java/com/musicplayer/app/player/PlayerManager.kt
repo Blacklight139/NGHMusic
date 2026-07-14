@@ -1,6 +1,6 @@
 // 职责：封装 ExoPlayer/Media3，提供 setMediaItem/play/pause/seek/toNext/toPrev/setVolume/setRepeatMode，
 //       通过 StateFlow 暴露播放状态（currentSong/position/duration/isPlaying/volume/mode）。
-// 集成方式：作为 ViewModel 在 MainScreen 中注入；在 AndroidManifest 注册 MediaSessionService 实现后台播放。
+// 集成方式：作为 AndroidViewModel 在 MainScreen 中通过 viewModel() 注入；在 AndroidManifest 注册 MediaSessionService 实现后台播放。
 //
 // 已修复 bug-report.md 中的 Android 静态审查问题：
 // - AND-001（竞态）：进度循环对 player 的访问与 onCleared 中的 release 通过 playerLock 同步；
@@ -8,11 +8,16 @@
 // - AND-002（逻辑）：moveToNext/toPrev 改用内部 playAt(index) 直接播放目标索引，
 //                   不再递归调用会重算 index 的 play(song)，避免随机/顺序切歌被重定位回原 index。
 // - AND-003（资源）：attach 注册的 Player.Listener 以字段持有，onCleared 显式 removeListener。
+// - AND-004（严重，播放器不可用）：原设计依赖外部 attach(ExoPlayer) 注入，但 attach 从无调用方，
+//                   导致 player 永远为 null，play/pause 等全部空转。改为 AndroidViewModel，
+//                   在 init 中以 Application 上下文创建 ExoPlayer 并完成 Listener 注册 / 启动进度循环，
+//                   ExoPlayer 生命周期与 ViewModel 一致（onCleared 中 release），并随配置变更存活。
 
 package com.musicplayer.app.player
 
+import android.app.Application
 import android.net.Uri
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -37,7 +42,7 @@ data class PlayerState(
     val mode: PlayMode = PlayMode.SEQUENTIAL
 )
 
-class PlayerManager : ViewModel() {
+class PlayerManager(app: Application) : AndroidViewModel(app) {
     // @Volatile 保证 onCleared 置空对进度循环可见；playerLock 序列化 release 与读取。
     @Volatile
     private var player: ExoPlayer? = null
@@ -51,9 +56,11 @@ class PlayerManager : ViewModel() {
     private val _state = MutableStateFlow(PlayerState())
     val state: StateFlow<PlayerState> = _state.asStateFlow()
 
-    /** 由 Composable 在创建 ExoPlayer 后注入（持有 Context） */
-    fun attach(exoPlayer: ExoPlayer) {
-        this.player = exoPlayer
+    init {
+        // AND-004 修复：在 ViewModel 初始化时以 Application 上下文创建 ExoPlayer，
+        // 替代从未被调用的 attach(exoPlayer)。Listener 注册与进度循环逻辑保持不变。
+        val exoPlayer = ExoPlayer.Builder(app).build()
+        player = exoPlayer
         exoPlayer.volume = _state.value.volume
         // AND-003：以字段持有 Listener，便于 onCleared 显式移除。
         val listener = object : Player.Listener {

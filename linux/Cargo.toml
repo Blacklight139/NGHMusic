@@ -1,0 +1,17 @@
+[package]
+name = "nghmusic-linux"
+version = "0.1.0"
+edition = "2021"
+description = "逆光音乐 Linux 客户端（GTK4 + Rust）"
+
+[dependencies]
+music-core = { path = "../core" }
+gtk4 = "0.9"
+libadwaita = "0.7"
+gstreamer = "0.23"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4"
+dirs = "5"

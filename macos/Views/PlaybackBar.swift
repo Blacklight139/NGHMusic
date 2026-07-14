@@ -65,8 +65,10 @@ struct PlaybackBar: View {
             Button(action: player.previous) {
                 Image(systemName: "backward.fill")
                     .font(.title3)
+                    .foregroundColor(player.currentIndex < 0 ? Color.nghTextTertiary : Color.nghText)
             }
             .buttonStyle(.plain)
+            .help("上一首")
             .disabled(player.currentIndex < 0)
 
             Button(action: player.togglePlayPause) {
@@ -75,13 +77,16 @@ struct PlaybackBar: View {
                     .foregroundColor(Color.nghPrimary)
             }
             .buttonStyle(.plain)
+            .help(player.isPlaying ? "暂停" : "播放")
             .disabled(player.currentSong == nil)
 
             Button(action: player.next) {
                 Image(systemName: "forward.fill")
                     .font(.title3)
+                    .foregroundColor(player.queue.isEmpty ? Color.nghTextTertiary : Color.nghText)
             }
             .buttonStyle(.plain)
+            .help("下一首")
             .disabled(player.queue.isEmpty)
         }
     }

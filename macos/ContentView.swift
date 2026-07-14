@@ -64,18 +64,18 @@ struct ContentView: View {
 
     private var sidebar: some View {
         VStack(spacing: 0) {
-            // 品牌头部
-            HStack(spacing: NghSpacing.s2) {
+            // 品牌头部：品牌名为首屏最醒目文本
+            HStack(spacing: NghSpacing.s3) {
                 Image(systemName: "music.note")
                     .font(.title2)
                     .foregroundColor(Color.nghPrimary)
                 Text("逆光音乐")
-                    .font(.title3.bold())
+                    .font(.title2.bold())
                     .foregroundColor(Color.nghText)
                 Spacer()
             }
             .padding(.horizontal, NghSpacing.s4)
-            .padding(.vertical, 14)
+            .padding(.vertical, NghSpacing.s4)
 
             Divider()
 
@@ -98,7 +98,7 @@ struct ContentView: View {
                 Spacer()
             }
             .padding(.horizontal, NghSpacing.s4)
-            .padding(.vertical, 10)
+            .padding(.vertical, NghSpacing.s3)
         }
         .background(Color.nghSidebarBackground)
     }

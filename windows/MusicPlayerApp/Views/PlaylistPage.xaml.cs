@@ -19,6 +19,13 @@ public sealed partial class PlaylistPage : Page
         _player = App.Player;
         RefreshList();
         _player.CurrentSongChanged += OnPlayerChanged;
+        Unloaded += OnPageUnloaded;
+    }
+
+    private void OnPageUnloaded(object sender, RoutedEventArgs e)
+    {
+        // 页面从导航框架移除时取消订阅，防止 PlayerService 单例长期持有页面引用导致内存泄漏
+        _player.CurrentSongChanged -= OnPlayerChanged;
     }
 
     private void OnPlayerChanged(object? sender, Song? song)
@@ -28,10 +35,11 @@ public sealed partial class PlaylistPage : Page
 
     private void RefreshList()
     {
+        var currentId = _player.CurrentSong?.Id;
         Songs.Clear();
         foreach (var s in _player.Queue)
         {
-            Songs.Add(new SongViewModel(s));
+            Songs.Add(new SongViewModel(s) { IsCurrent = s.Id == currentId });
         }
         CountText.Text = $"共 {Songs.Count} 首";
     }

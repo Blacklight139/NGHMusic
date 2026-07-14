@@ -239,9 +239,11 @@ pub unsafe extern "C" fn music_core_source_validate(json: *const c_char) -> *mut
     let value: serde_json::Value = match serde_json::from_str(&json_str) {
         Ok(v) => v,
         Err(e) => {
-            let res: Result<()> = Err(CoreError::Json(e));
-            return result_ptr(res.map(|_| {
-                serde_json::json!({ "valid": false, "errors": ["JSON 解析失败"] })
+            // JSON 解析失败应返回校验失败格式，而非错误 JSON，
+            // 与函数文档约定（{"valid":bool,"errors":[...]}）一致。
+            return to_json_ptr(&serde_json::json!({
+                "valid": false,
+                "errors": [format!("JSON 解析失败: {}", e)],
             }));
         }
     };

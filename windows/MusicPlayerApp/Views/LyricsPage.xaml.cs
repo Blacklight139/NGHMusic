@@ -23,8 +23,16 @@ public sealed partial class LyricsPage : Page
         _player = App.Player;
         _player.CurrentSongChanged += OnCurrentSongChanged;
         _player.PositionChanged += OnPositionChanged;
+        Unloaded += OnPageUnloaded;
         // 初始化展示
         OnCurrentSongChanged(this, _player.CurrentSong);
+    }
+
+    private void OnPageUnloaded(object sender, RoutedEventArgs e)
+    {
+        // 页面从导航框架移除时取消订阅，防止 PlayerService 单例长期持有页面引用导致内存泄漏
+        _player.CurrentSongChanged -= OnCurrentSongChanged;
+        _player.PositionChanged -= OnPositionChanged;
     }
 
     private void OnCurrentSongChanged(object? sender, Song? song)
@@ -100,8 +108,8 @@ public sealed partial class LyricsPage : Page
             {
                 tb.FontWeight = i == idx ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
                 tb.Foreground = i == idx
-                    ? (Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
-                    : (Brush)Application.Current.Resources["TextFillColorPrimaryBrush"];
+                    ? (Brush)Application.Current.Resources["NghPrimaryBrush"]
+                    : (Brush)Application.Current.Resources["NghTextPrimaryBrush"];
                 tb.FontSize = i == idx ? 18 : 14;
             }
         }
@@ -123,7 +131,7 @@ public sealed partial class LyricsPage : Page
             Text = hint,
             FontSize = 14,
             FontStyle = Windows.UI.Text.FontStyle.Italic,
-            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            Foreground = (Brush)Application.Current.Resources["NghTextSecondaryBrush"],
         });
     }
 

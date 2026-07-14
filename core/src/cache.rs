@@ -142,7 +142,10 @@ impl CacheManager {
         }
         let size = data.len() as u64;
 
-        // 更新索引与字节计数
+        // 更新索引与字节计数。
+        // fetch_add 必须在锁内执行：若放在锁外，另一并发线程可在我们 insert
+        // 之后、fetch_add 之前观察到索引变更并触发自己的 insert+fetch_sub，
+        // 导致计数失衡（旧条目被扣减但新条目尚未累加）。
         {
             let mut index = self.lock_index()?;
             if let Some(old) = index.insert(
@@ -157,9 +160,9 @@ impl CacheManager {
                 self.current_bytes
                     .fetch_sub(old.size as usize, Ordering::SeqCst);
             }
+            self.current_bytes
+                .fetch_add(size as usize, Ordering::SeqCst);
         }
-        self.current_bytes
-            .fetch_add(size as usize, Ordering::SeqCst);
 
         // 触发 LRU 淘汰
         self.evict_if_needed()?;

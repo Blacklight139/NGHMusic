@@ -7,6 +7,7 @@ import SwiftUI
 struct PlaylistView: View {
     @ObservedObject var player: PlayerService
     @State private var errorMessage: String?
+    @State private var hoveredIndex: Int? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,23 +44,30 @@ struct PlaylistView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(Array(player.queue.enumerated()), id: \.element.id) { index, song in
+                    let isCurrent = index == player.currentIndex
                     HStack(spacing: NghSpacing.s3) {
-                        Image(systemName: index == player.currentIndex ? "play.circle.fill" : "music.note")
-                            .foregroundColor(index == player.currentIndex ? Color.nghPrimary : Color.nghTextSecondary)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 2) {
+                        Image(systemName: isCurrent ? "play.circle.fill" : "music.note")
+                            .foregroundColor(isCurrent ? Color.nghPrimary : Color.nghTextSecondary)
+                            .font(.title3)
+                            .frame(width: 40, height: 40)
+                            .background(isCurrent ? Color.nghPrimarySoft : Color.clear)
+                            .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm))
+                        VStack(alignment: .leading, spacing: NghSpacing.s1) {
                             Text(song.title).font(.body).lineLimit(1)
-                                .foregroundColor(index == player.currentIndex ? Color.nghPrimary : Color.nghText)
+                                .foregroundColor(isCurrent ? Color.nghPrimary : Color.nghText)
+                                .fontWeight(isCurrent ? .semibold : .regular)
                             Text(song.artistsDisplay).font(.caption).foregroundColor(Color.nghTextSecondary)
                         }
                         Spacer()
-                        Text(song.durationDisplay).font(.caption).foregroundColor(Color.nghTextSecondary).monospacedDigit()
+                        Text(song.durationDisplay).font(.caption).foregroundColor(Color.nghTextTertiary).monospacedDigit()
                     }
                     .padding(.horizontal, NghSpacing.s4)
-                    .padding(.vertical, NghSpacing.s2)
+                    .padding(.vertical, NghSpacing.s3)
+                    .background(hoveredIndex == index ? Color.nghSurfaceAlt : Color.clear)
                     .contentShape(Rectangle())
+                    .onHover { hoveredIndex = $0 ? index : nil }
                     .onTapGesture { player.play(at: index) }
-                    Divider().padding(.leading, 56)
+                    Divider().padding(.leading, NghSpacing.s7)
                 }
             }
         }

@@ -26,9 +26,9 @@ struct PlaylistView: View {
                     }
                     if !player.queue.isEmpty {
                         Button(role: .destructive) {
-                            player.queue.removeAll()
-                            player.currentSong = nil
-                            player.pause()
+                            // IOS-004 修复：用 clear() 彻底移除 AVPlayer currentItem，
+                            // 而非仅 pause()（pause 后 resume() 仍会继续播放旧音频）。
+                            player.clear()
                         } label: {
                             Label("清空播放列表", systemImage: "trash")
                                 .font(.subheadline)

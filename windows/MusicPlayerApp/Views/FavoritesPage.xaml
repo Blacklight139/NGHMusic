@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:views="using:MusicPlayerApp.Views">
 
-    <Grid Padding="24" RowSpacing="16">
+    <Grid Padding="24" RowSpacing="16" Background="{ThemeResource NghBackgroundBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -21,7 +21,7 @@
             Grid.Row="1"
             Orientation="Horizontal"
             Spacing="8">
-            <Button Click="PlayAllButton_Click">
+            <Button Click="PlayAllButton_Click" Style="{StaticResource NghPrimaryButtonStyle}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <FontIcon Glyph="&#xE768;" FontSize="14" />
                     <TextBlock Text="全部播放" />
@@ -60,15 +60,24 @@
                                 Text="{x:Bind ArtistsText}"
                                 Style="{StaticResource NghSongArtistStyle}" />
                         </StackPanel>
-                        <Button
+                        <StackPanel
                             Grid.Column="2"
-                            Tag="{x:Bind Id}"
-                            Click="RemoveFavorite_Click"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="4">
-                            <FontIcon Glyph="&#xE74D;" FontSize="14" />
-                        </Button>
+                            Orientation="Horizontal"
+                            Spacing="6"
+                            VerticalAlignment="Center">
+                            <FontIcon
+                                Glyph="&#xE768;"
+                                FontSize="12"
+                                Foreground="{ThemeResource NghPrimaryBrush}"
+                                Visibility="{x:Bind IsCurrent, Mode=OneWay}" />
+                            <Button
+                                Tag="{x:Bind Id}"
+                                Click="RemoveFavorite_Click"
+                                Style="{StaticResource NghGhostButtonStyle}"
+                                Padding="4">
+                                <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                            </Button>
+                        </StackPanel>
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

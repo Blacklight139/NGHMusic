@@ -11,6 +11,13 @@
 //   - HAR-002（未处理异常）：ensurePlayer/load/play 等异步方法均包裹 try-catch，
 //     media.createAVPlayer() 抛错时不再冒泡为未处理 rejection。
 //   - HAR-004（资源）：新增显式 release() 方法，调用 avPlayer.release() 进入 released 状态。
+//   - HAR-005（状态机，播放不可用）：load 仅赋 url 进入 initialized 后直接返回，从未调用 prepare()，
+//     AVPlayer 不会进入 prepared，后续 play() 无效。改为：赋 url 后调用 prepare() 并等待 prepared 状态；
+//     若 AVPlayer 已处于 prepared/playing/paused/completed/stopped（持有旧源），先 reset() 回 idle 再赋新 url，
+//     避免在非 idle 状态覆写 url 导致状态机异常。
+//   - HAR-006（竞态，资源泄漏）：ensurePlayer 两次并发调用会各自 await media.createAVPlayer()，
+//     创建两个 AVPlayer 实例，先创建者被覆写后泄漏且其回调永不注销。改为以 in-flight Promise 缓存，
+//     并发调用复用同一次创建结果。
 
 import media from '@ohos.multimedia.media';
 import { PlayMode } from '../models/Models';
@@ -42,6 +49,10 @@ interface QueueItem {
 
 export class PlayerManager {
   private avPlayer: media.AVPlayer | null = null;
+  // HAR-006：in-flight Promise 缓存，并发 ensurePlayer 调用复用同一次 createAVPlayer 结果。
+  private ensurePlayerPromise: Promise<media.AVPlayer | null> | null = null;
+  // HAR-005：等待 AVPlayer 状态机推进到目标状态的临时回调（reset→idle / prepare→prepared）。
+  private stateWaiter: ((state: string) => void) | null = null;
   private queue: QueueItem[] = [];
   private index: number = 0;
 
@@ -63,11 +74,20 @@ export class PlayerManager {
 
   /**
    * 确保 AVPlayer 已创建。HAR-002：包裹 try-catch，避免 createAVPlayer 抛错冒泡。
+   * HAR-006 修复：并发调用复用同一 in-flight Promise，避免创建多个 AVPlayer 实例造成泄漏。
    */
-  private async ensurePlayer(): Promise<media.AVPlayer | null> {
+  private ensurePlayer(): Promise<media.AVPlayer | null> {
     if (this.avPlayer) {
-      return this.avPlayer;
+      return Promise.resolve(this.avPlayer);
     }
+    if (this.ensurePlayerPromise) {
+      return this.ensurePlayerPromise;
+    }
+    this.ensurePlayerPromise = this.createPlayer();
+    return this.ensurePlayerPromise;
+  }
+
+  private async createPlayer(): Promise<media.AVPlayer | null> {
     try {
       const player = await media.createAVPlayer();
       player.on('stateChange', (state: string) => {
@@ -78,6 +98,11 @@ export class PlayerManager {
         } else if (state === 'error') {
           console.error('[PlayerManager] AVPlayer 进入 error 状态');
           this.update({ isPlaying: false });
+        }
+        // HAR-005：通知等待者状态机已推进（reset→idle / prepare→prepared）。
+        const waiter = this.stateWaiter;
+        if (waiter) {
+          waiter(state);
         }
       });
       player.on('durationUpdate', (duration: number) => {
@@ -94,12 +119,43 @@ export class PlayerManager {
     } catch (e) {
       console.error(`[PlayerManager] createAVPlayer 失败: ${(e as Error).message ?? e}`);
       return null;
+    } finally {
+      // 创建完成（成功或失败）后清空缓存，允许后续重试。
+      this.ensurePlayerPromise = null;
     }
+  }
+
+  /**
+   * 等待 AVPlayer 状态机推进到 target 状态。HAR-005 辅助：load 中等待 reset→idle 与 prepare→prepared。
+   * 超时返回 false（不阻塞调用方），由调用方决定是否继续。
+   */
+  private waitForState(target: string, timeoutMs: number = 5000): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      let done = false;
+      const timer = setTimeout(() => {
+        if (!done) {
+          done = true;
+          this.stateWaiter = null;
+          console.warn(`[PlayerManager] waitForState('${target}') 超时`);
+          resolve(false);
+        }
+      }, timeoutMs);
+      this.stateWaiter = (state: string) => {
+        if (state === target && !done) {
+          done = true;
+          clearTimeout(timer);
+          this.stateWaiter = null;
+          resolve(true);
+        }
+      };
+    });
   }
 
   /**
    * 加载并播放指定 URL。HAR-002：包裹 try-catch。
    * url 为空字符串时直接返回 false，不修改任何播放状态（HAR-001 的底层守卫）。
+   * HAR-005 修复：赋 url 后必须 prepare() 并等待 prepared，否则 play() 无效；
+   *   若 AVPlayer 已持有旧源（非 idle/initialized/error），先 reset() 回 idle 再赋新 url。
    */
   async load(url: string, title: string = '未知曲目', artist: string = '—', songId: string = ''): Promise<boolean> {
     if (url === undefined || url === null || url.length === 0) {
@@ -118,9 +174,18 @@ export class PlayerManager {
         position: 0,
         hasPlayable: true,
       });
+      // HAR-005：若 AVPlayer 已处于持有旧源的状态（prepared/playing/paused/completed/stopped），
+      // 直接覆写 url 会破坏状态机；先 reset() 回 idle，等待 idle 后再赋新 url。
+      const cur = player.state;
+      if (cur && cur !== 'idle' && cur !== 'initialized' && cur !== 'error') {
+        player.reset();
+        await this.waitForState('idle');
+      }
       player.url = url;          // 在线/本地 URL；赋值后 AVPlayer 进入 initialized
       player.volume = this.status.volume;
       player.loop = (this.status.mode === PlayMode.SINGLE_LOOP);
+      player.prepare();          // HAR-005：进入 prepared 状态，play() 才能生效
+      await this.waitForState('prepared');
       return true;
     } catch (e) {
       console.error(`[PlayerManager] load 失败: ${(e as Error).message ?? e}`);
@@ -299,6 +364,9 @@ export class PlayerManager {
       console.error(`[PlayerManager] release 失败: ${(e as Error).message ?? e}`);
     } finally {
       this.avPlayer = null;
+      // HAR-005/HAR-006：释放时清理等待者与 in-flight 创建缓存，避免悬空回调 / 旧 Promise 复用。
+      this.stateWaiter = null;
+      this.ensurePlayerPromise = null;
       this.update({
         isPlaying: false,
         hasPlayable: false,

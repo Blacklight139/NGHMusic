@@ -51,6 +51,11 @@ public final class PlayerService: ObservableObject {
     private let stateDir: URL
     private let stateFile: URL
 
+    /// 串行队列用于后台持久化，避免文件 I/O 阻塞主线程。
+    private let persistQueue = DispatchQueue(label: "com.nghmusic.macos.persist", qos: .utility)
+    /// 时间观察者持久化的节流时间戳，避免每 0.5s 都写盘。
+    private var lastPersistTime: Date = .distantPast
+
     // MARK: - 初始化
 
     public init() {
@@ -199,10 +204,13 @@ public final class PlayerService: ObservableObject {
         player.replaceCurrentItem(with: item)
 
         // 监听 duration / status
-        statusObserver = item.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
+        statusObserver = item.observe(\.status, options: [.new, .initial]) { [weak self] observedItem, _ in
             guard let self = self else { return }
-            DispatchQueue.main.async {
-                if let d = item.duration.seconds, d.isFinite, !d.isNaN {
+            DispatchQueue.main.async { [weak self] in
+                // 确保观察的 item 仍是当前播放项，避免快速切歌时旧 item 的
+                // 回调覆盖新 item 的 duration（竞态条件）。
+                guard let self = self, self.player.currentItem === observedItem else { return }
+                if let d = observedItem.duration.seconds, d.isFinite, !d.isNaN {
                     self.duration = d
                 }
             }
@@ -233,8 +241,12 @@ public final class PlayerService: ObservableObject {
                let d = item.duration.seconds, d.isFinite, !d.isNaN, d > 0 {
                 self.duration = d
             }
-            // 持久化位置（节流：仅在每次回调时更新即可）
-            self.persistState()
+            // 持久化位置（节流：最多每 3 秒写一次盘，避免阻塞主线程）
+            let now = Date()
+            if now.timeIntervalSince(self.lastPersistTime) >= 3.0 {
+                self.lastPersistTime = now
+                self.persistState()
+            }
         }
     }
 
@@ -261,11 +273,16 @@ public final class PlayerService: ObservableObject {
             volume: volume,
             mode: mode
         )
-        do {
-            let data = try JSONEncoder().encode(state)
-            try data.write(to: stateFile, options: [.atomic])
-        } catch {
-            logger.warning("持久化播放状态失败: \(error.localizedDescription, privacy: .public)")
+        // 文件 I/O 放到后台串行队列执行，避免阻塞主线程；
+        // 串行队列保证多次写入按顺序执行，不会互相覆盖。
+        persistQueue.async { [weak self] in
+            guard let self = self else { return }
+            do {
+                let data = try JSONEncoder().encode(state)
+                try data.write(to: self.stateFile, options: [.atomic])
+            } catch {
+                self.logger.warning("持久化播放状态失败: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 

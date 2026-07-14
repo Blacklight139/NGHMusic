@@ -169,14 +169,16 @@ impl LocalSource {
             roots.retain(|p| p != &dir);
         }
 
-        // 停止 watcher（从 HashMap 移除即 drop，notify 内部线程被 join）
-        {
+        // 停止 watcher：从 HashMap 取出后先释放锁，再 drop watcher。
+        // RecommendedWatcher::drop 会 join notify 内部线程，若在锁内 drop
+        // 而回调正在等待 db 锁，会长时间持有 watchers 锁阻塞其他操作。
+        let _removed_watcher = {
             let mut watchers = self
                 .watchers
                 .lock()
                 .map_err(|e| CoreError::Source(e.to_string()))?;
-            watchers.remove(&dir);
-        }
+            watchers.remove(&dir)
+        };
 
         // 删除库中该目录下所有记录。
         // 用「查询全部 + Rust 侧 Path::starts_with 过滤」而非 SQL LIKE：
@@ -324,12 +326,15 @@ impl LocalSource {
             .watch(dir, RecursiveMode::Recursive)
             .map_err(|e| CoreError::Source(e.to_string()))?;
 
-        let mut watchers = self
-            .watchers
-            .lock()
-            .map_err(|e| CoreError::Source(e.to_string()))?;
-        // 若已存在旧 watcher，insert 会先 drop 旧的（停止其监听）
-        watchers.insert(dir.to_path_buf(), watcher);
+        // 若已存在旧 watcher，insert 会返回旧的；先释放锁再 drop 旧的，
+        // 避免 drop（join notify 线程）时长时间持有 watchers 锁。
+        let _old_watcher = {
+            let mut watchers = self
+                .watchers
+                .lock()
+                .map_err(|e| CoreError::Source(e.to_string()))?;
+            watchers.insert(dir.to_path_buf(), watcher)
+        };
         Ok(())
     }
 
