@@ -1,44 +1,78 @@
 // 职责：歌词屏幕，逐行展示并高亮当前行，豆包风格：active 行 Primary，非 active TextTertiary。
-// 对齐桌面端 pages/lyrics.js：与 PlayerManager.position 同步滚动。
+// 对齐桌面端 pages/lyrics.js：根据当前歌曲调用 MusicRepository.getLyric 拉取歌词，
+// 与 PlayerManager.position 同步滚动；无核心连接时回退占位歌词。
 
 package com.musicplayer.app.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.musicplayer.app.models.Lyric
+import com.musicplayer.app.models.LyricLine
 import com.musicplayer.app.player.PlayerManager
-import com.musicplayer.app.ui.theme.*
+import com.musicplayer.app.repository.MusicRepository
+import com.musicplayer.app.ui.theme.Background
+import com.musicplayer.app.ui.theme.NghDimensions
+import com.musicplayer.app.ui.theme.Primary
+import com.musicplayer.app.ui.theme.Surface
+import com.musicplayer.app.ui.theme.TextPrimary
+import com.musicplayer.app.ui.theme.TextTertiary
 
-private data class LyricLine(val timeMs: Long?, val text: String)
+/** 占位歌词：核心未连接时展示，保证 UI 结构可预览。 */
+private val placeholderLyric: Lyric = Lyric(
+    lines = listOf(
+        LyricLine(0L, "示例歌词第一行"),
+        LyricLine(5000L, "示例歌词第二行"),
+        LyricLine(10000L, "示例歌词第三行"),
+        LyricLine(15000L, "示例歌词第四行")
+    ),
+    translation = null
+)
 
 @Composable
 fun LyricsScreen(player: PlayerManager = viewModel()) {
-    val lines = remember {
-        listOf(
-            LyricLine(0L, "示例歌词第一行"),
-            LyricLine(5000L, "示例歌词第二行"),
-            LyricLine(10000L, "示例歌词第三行"),
-            LyricLine(15000L, "示例歌词第四行")
-        )
-    }
     val state by player.state.collectAsState()
     val listState = rememberLazyListState()
+    var lyric by remember { mutableStateOf(placeholderLyric) }
 
-    val currentIndex = remember(state.position) {
+    // 当前歌曲变化时拉取歌词；失败回退占位。
+    LaunchedEffect(state.currentSong?.id) {
+        val song = state.currentSong
+        if (song == null) {
+            lyric = placeholderLyric
+        } else {
+            val fetched = MusicRepository.getLyric(song.sourceId, song.id)
+            lyric = fetched ?: placeholderLyric
+        }
+    }
+
+    val lines = lyric.lines
+    val currentIndex = remember(state.position, lines) {
         var idx = 0
         lines.forEachIndexed { i, line ->
             if ((line.timeMs ?: 0) <= state.position) idx = i
@@ -47,7 +81,7 @@ fun LyricsScreen(player: PlayerManager = viewModel()) {
     }
 
     LaunchedEffect(currentIndex) {
-        listState.animateScrollToItem(currentIndex)
+        if (lines.isNotEmpty()) listState.animateScrollToItem(currentIndex)
     }
 
     Column(

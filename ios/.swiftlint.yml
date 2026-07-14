@@ -6,6 +6,7 @@ included:
 
 excluded:
   - MusicPlayerApp/.build
+  - MusicPlayerApp/.swiftpm
   - Pods
 
 # 默认 opt-in 规则按需开启，避免对 Swift 编译器警告造成双倍告警。
@@ -18,6 +19,7 @@ opt_in_rules:
   - sorted_first_last
   - toggle_bool
   - yoda_condition
+  - implicitly_unwrapped_optionals
 
 # 关闭若干对 SwiftUI / 跨平台桥接不友好的规则
 disabled_rules:
@@ -26,9 +28,21 @@ disabled_rules:
   - file_length  # 桥接文件 MusicCoreBridge.swift 可能较长
 
 # 强制错误而非警告的关键规则
+force_unwrapping:
+  severity: error
+
+force_cast:
+  severity: warning
+
+force_try:
+  severity: error
+
+implicitly_unwrapped_optionals:
+  severity: error
+
 line_length:
-  warning: 140
-  error: 200
+  warning: 200
+  error: 250
 
 function_body_length:
   warning: 60

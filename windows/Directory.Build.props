@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Directory.Build.props（Windows / WinUI 3）。
+  自动应用于 windows/ 目录下所有 C# 项目（如 MusicPlayerApp.csproj）。
+  职责：统一开启 .NET 分析器与代码风格规则。
+-->
+<Project>
+
+  <PropertyGroup>
+    <!-- 启用最新版 .NET 分析器，并以「推荐」级别启用规则 -->
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <!-- 警告不视为错误，避免阻断构建；由 .editorconfig 控制单条规则严重级别 -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- NuGet 分析器：.NET 质量规则与 C# 代码风格规则 -->
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeStyle" Version="9.0.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

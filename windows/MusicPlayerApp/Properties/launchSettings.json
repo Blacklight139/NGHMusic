@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "MusicPlayerApp": {
+      "commandName": "Project",
+      "nativeDebugging": false
+    },
+    "MusicPlayerApp (Unpackaged)": {
+      "commandName": "Project",
+      "nativeDebugging": true,
+      "doNotLaunchApp": false
+    }
+  }
+}

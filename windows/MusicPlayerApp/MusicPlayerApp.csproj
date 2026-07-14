@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>MusicPlayerApp</RootNamespace>
+    <AssemblyName>MusicPlayerApp</AssemblyName>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <!-- 显式声明 XAML 项（避免自动 glob 与显式 Include 冲突） -->
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.*" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.*" />
+  </ItemGroup>
+
+  <!--
+    XAML 页面：显式列出，作为 Page 项编译。
+    .cs 代码后置由 SDK 默认 glob 自动包含为 Compile 项（含 Services/、Models/、Views/ 下文件）。
+  -->
+  <ItemGroup>
+    <Page Include="App.xaml" />
+    <Page Include="MainWindow.xaml" />
+
+    <Page Include="Views\SearchPage.xaml" />
+    <Page Include="Views\PlaylistPage.xaml" />
+    <Page Include="Views\FavoritesPage.xaml" />
+    <Page Include="Views\LyricsPage.xaml" />
+    <Page Include="Views\LeaderboardPage.xaml" />
+    <Page Include="Views\LocalMusicPage.xaml" />
+    <Page Include="Views\SettingsPage.xaml" />
+    <Page Include="Views\PlaybackBar.xaml" />
+  </ItemGroup>
+
+  <!--
+    Rust 核心 FFI 绑定文件（拷贝自 core/ffi-bindings/csharp/，位于 Services/ 下）。
+    显式声明，确保编译包含（即便已由 SDK 自动 glob）。
+  -->
+  <ItemGroup>
+    <Compile Update="Services\MusicCoreNative.cs" />
+    <Compile Update="Services\MusicCoreException.cs" />
+    <Compile Update="Services\CoreService.cs" />
+    <Compile Update="Services\PlayerService.cs" />
+    <Compile Update="Models\Models.cs" />
+  </ItemGroup>
+
+  <!--
+    代码后置（.xaml.cs）：与 Page 配套。SDK 已自动包含，此处通过 DependentUpon
+    将 .xaml.cs 嵌套展示在对应 .xaml 之下（仅影响 Solution Explorer 视图，不影响编译）。
+  -->
+  <ItemGroup>
+    <Compile Update="MainWindow.xaml.cs">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\SearchPage.xaml.cs">
+      <DependentUpon>SearchPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\PlaylistPage.xaml.cs">
+      <DependentUpon>PlaylistPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\FavoritesPage.xaml.cs">
+      <DependentUpon>FavoritesPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\LyricsPage.xaml.cs">
+      <DependentUpon>LyricsPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\LeaderboardPage.xaml.cs">
+      <DependentUpon>LeaderboardPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\LocalMusicPage.xaml.cs">
+      <DependentUpon>LocalMusicPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\SettingsPage.xaml.cs">
+      <DependentUpon>SettingsPage.xaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\PlaybackBar.xaml.cs">
+      <DependentUpon>PlaybackBar.xaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <!--
+    运行时需将 music_core.dll（Rust cdylib）放到输出目录。
+    此处不打包 native 库；构建后由 CI/部署步骤将对应平台的 music_core.dll 复制到输出目录。
+  -->
+
+</Project>

@@ -1,0 +1,124 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{appxmanifest,xml,xaml}]
+indent_size = 2
+
+[*.json]
+indent_size = 2
+
+[*.cs]
+# Naming rules
+dotnet_naming_rule.public_members_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.public_members_should_be_pascal_case.symbols = public_symbols
+dotnet_naming_rule.public_members_should_be_pascal_case.style = pascal_case_style
+
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.symbols = private_field_symbols
+dotnet_naming_rule.private_instance_fields_should_be_camel_case.style = camel_case_style
+
+dotnet_naming_rule.local_variables_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.local_variables_should_be_camel_case.symbols = local_symbols
+dotnet_naming_rule.local_variables_should_be_camel_case.style = camel_case_style
+
+dotnet_naming_rule.parameters_should_be_camel_case.severity = suggestion
+dotnet_naming_rule.parameters_should_be_camel_case.symbols = parameter_symbols
+dotnet_naming_rule.parameters_should_be_camel_case.style = camel_case_style
+
+# Symbol groups
+dotnet_naming_symbols.public_symbols.applicable_kinds = property,method,event,field
+dotnet_naming_symbols.public_symbols.applicable_accessibilities = public
+
+dotnet_naming_symbols.private_field_symbols.applicable_kinds = field
+dotnet_naming_symbols.private_field_symbols.applicable_accessibilities = private
+
+dotnet_naming_symbols.local_symbols.applicable_kinds = local
+dotnet_naming_symbols.local_symbols.applicable_accessibilities = *
+
+dotnet_naming_symbols.parameter_symbols.applicable_kinds = parameter
+dotnet_naming_symbols.parameter_symbols.applicable_accessibilities = *
+
+# Naming styles
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+dotnet_naming_style.pascal_case_style.word_separator =
+
+dotnet_naming_style.camel_case_style.capitalization = camel_case
+dotnet_naming_style.camel_case_style.word_separator =
+
+dotnet_naming_style.camel_case_style.required_prefix =
+
+# Modifier preferences
+csharp_prefer_braces = true:suggestion
+csharp_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async
+
+# Expression-bodied members
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+
+# var preferences
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Pattern matching
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+
+# Null checking
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+
+# Namespace preferences
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Organize usings
+dotnet_sort_system_directives_first = true
+csharp_using_directive_placement = outside_namespace:warning
+
+# Expression-level preferences
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_explicit_tuple_names = true:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
+
+# C# formatting
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_object_collections = true
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = flush_left
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_empty_parameter_list_parentheses = false
+
+# .NET 分析器（CA 规则）严重级别：与 Directory.Build.props 的 AnalysisLevel=latest 配合。
+# 关闭对 WinUI 桌面应用噪音过大的规则，提升其余常见问题的可见性。
+dotnet_diagnostic.CA1031.severity = warning  # Do not catch general exception types
+dotnet_diagnostic.CA1051.severity = warning  # Do not declare visible instance fields
+dotnet_diagnostic.CA1054.severity = none     # URI params should not be strings (UI 噪音大)
+dotnet_diagnostic.CA1056.severity = none     # URI properties should not be strings (UI 噪音大)
+dotnet_diagnostic.CA1062.severity = warning  # Validate arguments of public methods
+dotnet_diagnostic.CA1303.severity = none     # Do not pass literals as localized parameters (UI 噪音大)
+dotnet_diagnostic.CA1707.severity = warning  # Identifiers should not contain underscores
+dotnet_diagnostic.CA1822.severity = suggestion  # Mark members as static
+dotnet_diagnostic.CA1848.severity = suggestion  # Use LoggerMessage delegates
+dotnet_diagnostic.CA2007.severity = warning  # Consider calling ConfigureAwait
+dotnet_diagnostic.CA2211.severity = warning  # Non-constant fields should not be visible

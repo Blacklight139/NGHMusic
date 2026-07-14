@@ -1,6 +1,10 @@
 // 职责：播放列表页 ArkUI 组件，展示当前队列歌曲（卡片化，豆包风格 ngh_* token）。
+// 队列来源：playerManager.getQueue 不暴露 song 列表，故本页维护本地副本，
+// 由 Search/LocalMusic 等页面通过 playerManager.setQueue 设置；
+// 点击条目调用 playerManager.playSong 拉起播放。
 
-import { Song } from '../bridge/MusicCoreBridge';
+import { Song } from '../models/Models';
+import { playerManager } from '../player/PlayerManager';
 
 @Component
 export struct PlaylistPage {
@@ -52,6 +56,10 @@ export struct PlaylistPage {
           .fontColor($r('app.color.ngh_text_secondary')).maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }.layoutWeight(1).margin({ left: 8 })
+      Text(this.originLabel(song)).fontSize(11)
+        .fontColor($r('app.color.ngh_text_secondary'))
+        .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+        .backgroundColor($r('app.color.ngh_surface_alt')).borderRadius(999)
     }
     .width('100%').padding(16)
     .backgroundColor($r('app.color.ngh_surface'))
@@ -59,6 +67,7 @@ export struct PlaylistPage {
     .border({ width: 1, color: $r('app.color.ngh_border') })
     .shadow({ radius: 8, color: '#14000000', offsetX: 0, offsetY: 2 })
     .margin({ bottom: 12 })
+    .onClick(() => this.playSong(song))
     .onTouch((event: TouchEvent) => {
       if (event.type === TouchType.Down) {
         this.pressedId = song.id;
@@ -85,5 +94,23 @@ export struct PlaylistPage {
     }
     .width('100%').padding({ top: 64, bottom: 64 })
     .alignItems(HorizontalAlign.Center)
+  }
+
+  private playSong(song: Song): void {
+    playerManager.playSong({
+      id: song.id,
+      title: song.title,
+      artist: song.artists.join(' / '),
+      playUrl: song.play_url ?? '',
+    });
+  }
+
+  private originLabel(song: Song): string {
+    switch (song.origin.type) {
+      case 'Online': return '在线';
+      case 'Local': return '本地';
+      case 'Nas': return 'NAS';
+      default: return '未知';
+    }
   }
 }

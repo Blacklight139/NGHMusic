@@ -1,19 +1,14 @@
 // MARK: - LocalMusicView
-// 职责：本地音乐页，按歌曲/专辑/艺术家/文件夹浏览，简约风格占位。
+// 职责：本地音乐页，按歌曲/专辑/艺术家/文件夹浏览。
+// 对齐 docs/sound-source-api.md 本地源：通过 MusicCoreBridge.listLocalSongs 拉取本地歌曲。
+// 脚手架阶段（未链接核心库）listLocalSongs 返回占位数据；点击歌曲入队播放。
 
 import SwiftUI
 
 struct LocalMusicView: View {
-    @State private var songs: [Song] = [
-        Song(id: "lo1", sourceId: "local", title: "本地示例一", artists: ["未知艺术家"],
-             album: "本地专辑", coverUrl: nil, durationMs: 198000, lyricUrl: nil,
-             playUrl: nil, localPath: "/music/a.mp3",
-             origin: .local(path: "/music/a.mp3")),
-        Song(id: "lo2", sourceId: "local", title: "本地示例二", artists: ["艺术家C"],
-             album: nil, coverUrl: nil, durationMs: 165000, lyricUrl: nil,
-             playUrl: nil, localPath: "/music/b.flac",
-             origin: .local(path: "/music/b.flac")),
-    ]
+    @EnvironmentObject var player: PlayerManager
+    @State private var songs: [Song] = []
+    @State private var loading = false
     @State private var selectedFilter = 0
     private let filters = ["歌曲", "专辑", "艺术家", "文件夹"]
 
@@ -25,20 +20,30 @@ struct LocalMusicView: View {
                 }
                 .pickerStyle(.segmented)
 
+                if loading { ProgressView("加载中…") }
+
                 if songs.isEmpty {
                     EmptyState(text: "尚未扫描本地音乐，前往设置添加目录")
                 } else {
-                    VStack(spacing: NghSpacing.s3) {
-                        ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                            Button { /* press 反馈，暂无跳转 */ } label: { SongRow(index: index + 1, song: song) }
-                                .nghPressableStyle()
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
+                    SongListView(songs: songs) { song in
+                        player.play(song: song, in: songs)
                     }
-                    // iOS 15+：列表项出现时 staggered fade-in。
-                    .animation(.easeOut(duration: 0.3), value: songs.count)
                 }
             }
+        }
+        .onAppear {
+            Task { await loadLocalSongs() }
+        }
+    }
+
+    /// 拉取本地歌曲；脚手架阶段返回占位数据。
+    private func loadLocalSongs() async {
+        loading = true
+        defer { loading = false }
+        do {
+            songs = try await MusicCoreBridge.listLocalSongs()
+        } catch {
+            songs = []
         }
     }
 }

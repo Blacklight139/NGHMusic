@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="MusicPlayerApp.Views.LyricsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock
+            Grid.Row="0"
+            Text="歌词"
+            FontSize="28"
+            FontWeight="SemiBold" />
+
+        <StackPanel Grid.Row="1" Orientation="Vertical" Spacing="4">
+            <TextBlock
+                x:Name="CurrentTitleText"
+                FontSize="16"
+                FontWeight="SemiBold"
+                Text="尚未播放" />
+            <TextBlock
+                x:Name="CurrentArtistText"
+                FontSize="12"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Text="" />
+        </StackPanel>
+
+        <ScrollViewer
+            Grid.Row="2"
+            x:Name="LyricScroll"
+            VerticalScrollBarVisibility="Auto"
+            Padding="0,0,12,0">
+            <StackPanel x:Name="LyricPanel" Spacing="8">
+                <TextBlock
+                    Text="播放任意歌曲后此处将显示歌词"
+                    FontSize="14"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    FontStyle="Italic" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

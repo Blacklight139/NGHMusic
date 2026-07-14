@@ -1,6 +1,10 @@
 // 职责：本地音乐页 ArkUI 组件，按歌曲/专辑/艺术家/文件夹浏览（卡片化，豆包风格 ngh_* token）。
+// 对齐 docs/api/sound-source-api.md：MusicCoreBridge.listLocalSongs() 返回 Song[]。
+// 占位：脚手架本地数据；点击条目调用 playerManager.playSong 拉起播放。
 
-import { Song } from '../bridge/MusicCoreBridge';
+import { Song } from '../models/Models';
+import { MusicCoreBridge } from '../bridge/MusicCoreBridge';
+import { playerManager } from '../player/PlayerManager';
 
 @Component
 export struct LocalMusicPage {
@@ -81,6 +85,7 @@ export struct LocalMusicPage {
     .border({ width: 1, color: $r('app.color.ngh_border') })
     .shadow({ radius: 8, color: '#14000000', offsetX: 0, offsetY: 2 })
     .margin({ bottom: 12 })
+    .onClick(() => this.playSong(song))
     .onTouch((event: TouchEvent) => {
       if (event.type === TouchType.Down) {
         this.pressedId = song.id;
@@ -107,5 +112,25 @@ export struct LocalMusicPage {
     }
     .width('100%').padding({ top: 64, bottom: 64 })
     .alignItems(HorizontalAlign.Center)
+  }
+
+  private playSong(song: Song): void {
+    // 本地歌曲 play_url 通常为空，使用 local_path 作为播放 URL
+    const url = song.play_url ?? '';
+    const finalUrl = url.length > 0 ? url : (song.local_path ?? '');
+    playerManager.playSong({
+      id: song.id,
+      title: song.title,
+      artist: song.artists.join(' / '),
+      playUrl: finalUrl,
+    });
+  }
+
+  // 接入核心后的刷新入口（脚手架阶段未触发）
+  private refreshLocal(): void {
+    const list = MusicCoreBridge.listLocalSongs();
+    if (list && list.length > 0) {
+      this.songs = list;
+    }
   }
 }

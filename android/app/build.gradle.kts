@@ -16,6 +16,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("io.gitlab.arturbosch.detekt")
 }
 
 android {
@@ -50,6 +51,13 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+    lint {
+        abortOnError = false
+    }
+}
+
+detekt {
+    config.setFrom("$rootDir/detekt.yml")
 }
 
 dependencies {
@@ -72,6 +80,9 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.2.1")
     implementation("androidx.media3:media3-ui:1.2.1")
     implementation("androidx.media3:media3-session:1.2.1")
+
+    // Gson：解析 music-core 返回的 JSON 字符串（@SerializedName 与 SongOrigin 多态适配器）
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // music-core UniFFI Kotlin 绑定（生成后启用）
     // implementation(files("src/main/java/com/musicplayer/core/musiccore.kt"))

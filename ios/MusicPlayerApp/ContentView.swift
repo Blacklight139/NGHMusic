@@ -1,5 +1,5 @@
 // MARK: - ContentView
-// 职责：根视图，品牌位「逆光音乐 / NGHMusic」+ TabView 导航（搜索/列表/收藏/排行榜/本地/设置）+ 底部迷你播放器。
+// 职责：根视图，品牌位「逆光音乐 / NGHMusic」+ TabView 导航（搜索/列表/收藏/排行榜/本地/设置）+ 底部 PlaybackBar。
 // 豆包风格：主色 #4E6EF2，背景 #F7F8FA/#FFFFFF，图标统一 SF Symbols。
 // 集成方式：由 MusicPlayerApp 直接挂载，无需额外配置。
 
@@ -39,6 +39,11 @@ struct ContentView: View {
                     .tag(AppTab.local)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
 
+                NasView()
+                    .tabItem { Label(AppTab.nas.title, systemImage: AppTab.nas.icon) }
+                    .tag(AppTab.nas)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+
                 SettingsView()
                     .tabItem { Label(AppTab.settings.title, systemImage: AppTab.settings.icon) }
                     .tag(AppTab.settings)
@@ -49,12 +54,12 @@ struct ContentView: View {
             .animation(.easeInOut(duration: 0.2), value: selectedTab)
 
             if player.currentSong != nil {
-                MiniPlayerBar(showLyrics: $showLyrics)
+                PlaybackBar(showLyrics: $showLyrics)
                     .environmentObject(player)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        // iOS 15+：MiniPlayer 出现/消失弹簧动画（有曲目播放时滑入，无曲目时滑出）。
+        // iOS 15+：PlaybackBar 出现/消失弹簧动画（有曲目播放时滑入，无曲目时滑出）。
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: player.currentSong != nil)
         .sheet(isPresented: $showLyrics) {
             LyricsView()
@@ -91,83 +96,9 @@ struct BrandBar: View {
     }
 }
 
-// MARK: - MiniPlayerBar
-// 底部迷你播放组件：封面/标题/艺术家 + 上一首/播放/下一首 + 进度条 + 音量。
-struct MiniPlayerBar: View {
-    @EnvironmentObject var player: PlayerManager
-    @Binding var showLyrics: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ProgressView(value: Double(player.position), total: max(Double(player.duration), 1))
-                .progressViewStyle(.linear)
-                .tint(Color.nghPrimary)
-
-            HStack(spacing: NghSpacing.s4) {
-                // 左侧：曲目信息
-                RoundedRectangle(cornerRadius: NghRadius.sm, style: .continuous)
-                    .fill(LinearGradient(colors: [Color.nghPrimary, Color.nghPrimaryHover],
-                                         startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 40, height: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(player.currentSong?.title ?? "未在播放")
-                        .font(.subheadline).fontWeight(.medium)
-                        .foregroundColor(Color.nghText)
-                        .lineLimit(1)
-                    Text(player.currentSong?.artists.joined(separator: " / ") ?? "—")
-                        .font(.caption)
-                        .foregroundColor(Color.nghTextSecondary)
-                        .lineLimit(1)
-                }
-                Spacer()
-
-                // 中间：播放控制
-                HStack(spacing: NghSpacing.s3) {
-                    Button(action: { player.toPrev() }) {
-                        Image(systemName: "backward.fill")
-                    }
-                    Button(action: { player.isPlaying ? player.pause() : player.resume() }) {
-                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.title3)
-                    }
-                    Button(action: { player.toNext() }) {
-                        Image(systemName: "forward.fill")
-                    }
-                }
-                .foregroundColor(Color.nghText)
-
-                // 右侧：歌词/模式/音量
-                HStack(spacing: NghSpacing.s3) {
-                    Button(action: { showLyrics = true }) {
-                        Image(systemName: "text.quote")
-                    }
-                    Button(action: { player.toggleMode() }) {
-                        Image(systemName: player.modeIcon)
-                    }
-                    Image(systemName: "speaker.fill")
-                        .foregroundColor(Color.nghTextTertiary)
-                    Slider(value: Binding(get: { Double(player.volume) },
-                                          set: { player.setVolume(Float($0)) }),
-                           in: 0...1).frame(width: 90).tint(Color.nghPrimary)
-                }
-                .foregroundColor(Color.nghText)
-            }
-            .padding(.horizontal, NghSpacing.s4)
-            .padding(.vertical, NghSpacing.s2)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: NghRadius.lg, style: .continuous).fill(Color.nghSurface)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: NghRadius.lg, style: .continuous))
-        .nghCardShadow()
-        .padding(.horizontal, NghSpacing.s3)
-        .padding(.bottom, NghSpacing.s2)
-    }
-}
-
 // MARK: - AppTab
 enum AppTab: Hashable {
-    case search, playlist, favorites, leaderboard, local, settings
+    case search, playlist, favorites, leaderboard, local, nas, settings
     var title: String {
         switch self {
         case .search: return "搜索"
@@ -175,6 +106,7 @@ enum AppTab: Hashable {
         case .favorites: return "收藏"
         case .leaderboard: return "排行榜"
         case .local: return "本地音乐"
+        case .nas: return "NAS"
         case .settings: return "设置"
         }
     }
@@ -185,6 +117,7 @@ enum AppTab: Hashable {
         case .favorites: return "heart"
         case .leaderboard: return "trophy"
         case .local: return "folder"
+        case .nas: return "externaldrive.connected.to.line.below"
         case .settings: return "gearshape"
         }
     }

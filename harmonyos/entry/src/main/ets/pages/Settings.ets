@@ -1,10 +1,15 @@
 // 职责：设置页 ArkUI 组件。音源管理（LXMusic 风格列表 + 文件导入）、核心版本、本地目录、缓存。
 // 音源管理调用 MusicCoreBridge 的 SourceManager 方法；文件导入使用 @ohos.file.picker + @ohos.file.fs。
+// 本地目录调用 MusicCoreBridge.localAddDir / localProgress / localRescan；
+// 缓存调用 MusicCoreBridge.cacheStats / cacheClear。
 
 import { MusicCoreBridge, SourceInfo } from '../bridge/MusicCoreBridge';
 import picker from '@ohos.file.picker';
 import fs from '@ohos.file.fs';
 import util from '@ohos.util';
+
+interface LocalDirItem { path: string; }
+interface CacheStats { entries: number; total_bytes: number; max_bytes: number; }
 
 @Component
 export struct SettingsPage {
@@ -13,26 +18,32 @@ export struct SettingsPage {
   @State expandedId: string = '';
   @State feedback: string = '';
   @State feedbackOk: boolean = false;
+  @State localDirs: LocalDirItem[] = [];
+  @State scanning: boolean = false;
+  @State localCount: number = 0;
+  @State cacheStats: CacheStats | null = null;
 
   aboutToAppear(): void {
     this.version = MusicCoreBridge.appVersion();
     this.refreshSources();
+    this.refreshLocalProgress();
+    this.refreshCacheStats();
   }
 
   build() {
     Column() {
       Text('设置').fontSize(22).fontWeight(FontWeight.Medium)
-        .fontColor($r('app.color.text_primary'))
+        .fontColor($r('app.color.ngh_text_primary'))
       Text('音源管理 / 缓存 / 本地目录').fontSize(12)
-        .fontColor($r('app.color.text_muted')).margin({ top: 2 })
+        .fontColor($r('app.color.ngh_text_secondary')).margin({ top: 2 })
 
       Scroll() {
         Column() {
           // 版本
           Row() {
-            Text('核心版本').fontSize(12).fontColor($r('app.color.text_muted'))
+            Text('核心版本').fontSize(12).fontColor($r('app.color.ngh_text_secondary'))
             Blank()
-            Text(this.version).fontSize(12).fontColor($r('app.color.text_primary'))
+            Text(this.version).fontSize(12).fontColor($r('app.color.ngh_text_primary'))
           }
           .width('100%').margin({ top: 16 })
 
@@ -40,28 +51,16 @@ export struct SettingsPage {
           this.SourceManagementCard()
 
           // 本地音乐目录
-          Text('本地音乐目录').fontSize(14).fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_primary')).margin({ top: 24 })
-          Text('暂无目录，将在此添加 / 移除本地目录并触发扫描')
-            .fontSize(12).fontColor($r('app.color.text_muted'))
-            .width('100%').padding(16).margin({ top: 8 })
-            .backgroundColor($r('app.color.bg')).borderRadius(8)
-            .border({ width: 1, color: $r('app.color.border') })
+          this.LocalDirCard()
 
           // 缓存
-          Text('播放缓存').fontSize(14).fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.text_primary')).margin({ top: 24 })
-          Text('缓存容量与清理功能将在此提供')
-            .fontSize(12).fontColor($r('app.color.text_muted'))
-            .width('100%').padding(16).margin({ top: 8 })
-            .backgroundColor($r('app.color.bg')).borderRadius(8)
-            .border({ width: 1, color: $r('app.color.border') })
+          this.CacheCard()
         }
       }
       .layoutWeight(1).margin({ top: 16 })
     }
     .width('100%').height('100%').padding(16)
-    .backgroundColor($r('app.color.bg_alt'))
+    .backgroundColor($r('app.color.ngh_background'))
   }
 
   @Builder
@@ -138,8 +137,137 @@ export struct SettingsPage {
     .shadow({ radius: 8, color: '#14000000', offsetX: 0, offsetY: 2 })
   }
 
+  @Builder
+  LocalDirCard() {
+    Column() {
+      Row() {
+        Column() {
+          Text('本地音乐目录').fontSize(16).fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.ngh_text_primary'))
+          if (this.scanning) {
+            Text(`扫描中... 已索引 ${this.localCount} 首`).fontSize(11)
+              .fontColor($r('app.color.ngh_warning')).margin({ top: 2 })
+          } else {
+            Text(`已添加 ${this.localDirs.length} 个目录，已索引 ${this.localCount} 首`).fontSize(11)
+              .fontColor($r('app.color.ngh_text_tertiary')).margin({ top: 2 })
+          }
+        }.alignItems(HorizontalAlign.Start)
+        Blank()
+        SymbolGlyph($r('sys.symbol.folder_badge_plus'))
+          .fontSize(20)
+          .fontColor([$r('app.color.ngh_text_primary')])
+          .padding(8)
+          .backgroundColor($r('app.color.ngh_surface_alt'))
+          .borderRadius(20)
+          .onClick(() => this.pickAndAddLocalDir())
+      }.width('100%')
+
+      if (this.localDirs.length === 0) {
+        Text('暂无目录，点击右上角选择本地音乐目录')
+          .fontSize(12).fontColor($r('app.color.ngh_text_tertiary'))
+          .width('100%').padding({ top: 16, bottom: 16 })
+          .textAlign(TextAlign.Center)
+      } else {
+        List() {
+          ForEach(this.localDirs, (d: LocalDirItem, index: number) => {
+            ListItem() {
+              Row() {
+                SymbolGlyph($r('sys.symbol.folder'))
+                  .fontSize(16)
+                  .fontColor([$r('app.color.ngh_text_secondary')])
+                Text(d.path).fontSize(12).layoutWeight(1).margin({ left: 8 })
+                  .fontColor($r('app.color.ngh_text_primary'))
+                  .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+                SymbolGlyph($r('sys.symbol.trash'))
+                  .fontSize(14)
+                  .fontColor([$r('app.color.ngh_danger')])
+                  .onClick(() => this.removeLocalDir(index))
+              }
+              .width('100%').padding({ top: 10, bottom: 10 })
+            }
+          }, (d: LocalDirItem) => d.path)
+        }
+        .width('100%').margin({ top: 8 })
+        .divider({ strokeWidth: 1, color: $r('app.color.ngh_border_soft'), startMargin: 8, endMargin: 8 })
+
+        // 重新扫描按钮
+        Button('重新扫描')
+          .width('100%').margin({ top: 12 })
+          .backgroundColor($r('app.color.ngh_primary'))
+          .onClick(() => this.triggerRescan())
+      }
+    }
+    .width('100%').margin({ top: 24 })
+    .padding(12)
+    .backgroundColor($r('app.color.ngh_surface'))
+    .borderRadius(12)
+    .border({ width: 1, color: $r('app.color.ngh_border') })
+    .shadow({ radius: 8, color: '#14000000', offsetX: 0, offsetY: 2 })
+  }
+
+  @Builder
+  CacheCard() {
+    Column() {
+      Row() {
+        Column() {
+          Text('播放缓存').fontSize(16).fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.ngh_text_primary'))
+          Text(this.cacheStats === null
+            ? '未初始化缓存'
+            : `条目 ${this.cacheStats.entries} / 容量 ${this.formatBytes(this.cacheStats.total_bytes)} / 上限 ${this.formatBytes(this.cacheStats.max_bytes)}`)
+            .fontSize(11).fontColor($r('app.color.ngh_text_tertiary')).margin({ top: 2 })
+        }.alignItems(HorizontalAlign.Start)
+        Blank()
+        SymbolGlyph($r('sys.symbol.arrow_counterclockwise'))
+          .fontSize(18)
+          .fontColor([$r('app.color.ngh_text_secondary')])
+          .padding(8)
+          .backgroundColor($r('app.color.ngh_surface_alt'))
+          .borderRadius(20)
+          .onClick(() => this.clearCache())
+      }.width('100%')
+    }
+    .width('100%').margin({ top: 24, bottom: 24 })
+    .padding(12)
+    .backgroundColor($r('app.color.ngh_surface'))
+    .borderRadius(12)
+    .border({ width: 1, color: $r('app.color.ngh_border') })
+    .shadow({ radius: 8, color: '#14000000', offsetX: 0, offsetY: 2 })
+  }
+
   private refreshSources(): void {
     this.sources = MusicCoreBridge.listSourcesOrdered();
+  }
+
+  private refreshLocalProgress(): void {
+    const json = MusicCoreBridge.localProgress();
+    if (json === null) {
+      return;
+    }
+    try {
+      const obj = JSON.parse(json) as Record<string, Object>;
+      this.scanning = Boolean(obj['scanning']);
+      this.localCount = Number(obj['current_count'] ?? 0);
+    } catch (e) {
+      // 占位：核心未链接时忽略
+    }
+  }
+
+  private refreshCacheStats(): void {
+    const json = MusicCoreBridge.cacheStats();
+    if (json === null) {
+      return;
+    }
+    try {
+      const obj = JSON.parse(json) as Record<string, Object>;
+      this.cacheStats = {
+        entries: Number(obj['entries'] ?? 0),
+        total_bytes: Number(obj['total_bytes'] ?? 0),
+        max_bytes: Number(obj['max_bytes'] ?? 0),
+      };
+    } catch (e) {
+      // 占位：核心未链接时忽略
+    }
   }
 
   private setFeedback(msg: string, ok: boolean): void {
@@ -235,6 +363,106 @@ export struct SettingsPage {
     }).catch(() => {
       // 用户取消或选择失败，不提示
     });
+  }
+
+  private pickAndAddLocalDir(): void {
+    const options = new picker.DocumentSelectOptions();
+    options.maxSelectNumber = 1;
+    options.selectMode = picker.DocumentSelectMode.FOLDER;
+    const folderPicker = new picker.DocumentViewPicker();
+    folderPicker.select(options).then((uris: string[]) => {
+      if (uris === undefined || uris === null || uris.length === 0) {
+        return;
+      }
+      const uri = uris[0];
+      // 去重
+      if (this.localDirs.some((d: LocalDirItem) => d.path === uri)) {
+        this.setFeedback('该目录已添加', false);
+        return;
+      }
+      const json = MusicCoreBridge.localAddDir(uri);
+      let ok = true;
+      if (json !== null) {
+        try {
+          const obj = JSON.parse(json) as Record<string, Object>;
+          ok = Boolean(obj['ok']);
+        } catch (e) {
+          ok = false;
+        }
+      }
+      // NAPI 未链接时仍加入本地列表（脚手架占位）
+      this.localDirs = this.localDirs.concat([{ path: uri }]);
+      if (ok) {
+        this.setFeedback(`已添加目录并触发扫描：${uri}`, true);
+        this.refreshLocalProgress();
+      } else {
+        this.setFeedback(`已记录目录（核心未链接，扫描待启用）：${uri}`, false);
+      }
+    }).catch(() => {
+      // 用户取消
+    });
+  }
+
+  private removeLocalDir(index: number): void {
+    const dir = this.localDirs[index];
+    if (dir === undefined) {
+      return;
+    }
+    // 注：MusicCoreBridge 暂未暴露 localRemoveDir；核心未链接时仅移除本地副本
+    const list = this.localDirs.slice();
+    list.splice(index, 1);
+    this.localDirs = list;
+    this.setFeedback(`已移除目录：${dir.path}`, true);
+  }
+
+  private triggerRescan(): void {
+    const json = MusicCoreBridge.localRescan();
+    let ok = true;
+    if (json !== null) {
+      try {
+        const obj = JSON.parse(json) as Record<string, Object>;
+        ok = Boolean(obj['ok']);
+      } catch (e) {
+        ok = false;
+      }
+    }
+    if (ok) {
+      this.setFeedback('已触发重新扫描', true);
+      this.refreshLocalProgress();
+    } else {
+      this.setFeedback('重新扫描失败（核心未链接）', false);
+    }
+  }
+
+  private clearCache(): void {
+    const json = MusicCoreBridge.cacheClear();
+    let ok = true;
+    if (json !== null) {
+      try {
+        const obj = JSON.parse(json) as Record<string, Object>;
+        ok = Boolean(obj['ok']);
+      } catch (e) {
+        ok = false;
+      }
+    }
+    if (ok) {
+      this.refreshCacheStats();
+      this.setFeedback('缓存已清空', true);
+    } else {
+      this.setFeedback('清空缓存失败（核心未链接）', false);
+    }
+  }
+
+  private formatBytes(n: number): string {
+    if (n <= 0) return '0 B';
+    const units: string[] = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    let v = n;
+    while (v >= 1024 && i < units.length - 1) {
+      v = v / 1024;
+      i++;
+    }
+    return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
   }
 }
 
