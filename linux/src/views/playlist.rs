@@ -191,7 +191,7 @@ fn build_rebuild_closure(
         }
 
         for (index, song) in queue.iter().enumerate() {
-            let is_current = current_idx.map(|i| i == index).unwrap_or(false);
+            let is_current = current_idx >= 0 && current_idx as usize == index;
             let row = create_queue_row(song, index, is_current);
             listbox.append(&row);
         }

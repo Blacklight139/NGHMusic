@@ -22,35 +22,60 @@ struct FavoritesView: View {
             .padding(.vertical, NghSpacing.s3)
             Divider()
 
-            List {
-                Section("分组") {
-                    ForEach(groups, id: \.self) { group in
-                        HStack {
-                            Image(systemName: "heart.fill")
-                                .foregroundColor(.pink)
-                            Text(group)
-                            Spacer()
-                            Text("0")
-                                .font(.caption)
-                                .foregroundColor(Color.nghTextSecondary)
+            ScrollView {
+                VStack(alignment: .leading, spacing: NghSpacing.s4) {
+                    section(title: "分组（\(groups.count)）") {
+                        ForEach(groups, id: \.self) { group in
+                            HStack(spacing: NghSpacing.s3) {
+                                Image(systemName: "heart.fill")
+                                    .font(.title3)
+                                    .foregroundColor(Color.nghPrimary)
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.nghPrimarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm))
+                                VStack(alignment: .leading, spacing: NghSpacing.s1) {
+                                    Text(group).font(.body)
+                                    Text("0 首")
+                                        .font(.caption)
+                                        .foregroundColor(Color.nghTextSecondary)
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, NghSpacing.s2)
+                            Divider()
                         }
                     }
-                }
-                Section {
-                    HStack(spacing: 12) {
-                        Image(systemName: "heart.slash")
-                            .font(.title3)
-                            .foregroundColor(Color.nghTextSecondary)
-                        Text("尚无收藏歌曲")
-                            .foregroundColor(Color.nghTextSecondary)
+
+                    section(title: "歌曲") {
+                        HStack(spacing: NghSpacing.s3) {
+                            Image(systemName: "heart.slash")
+                                .font(.title3)
+                                .foregroundColor(Color.nghTextTertiary)
+                                .frame(width: 40, height: 40)
+                                .background(Color.nghSurfaceAlt)
+                                .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm))
+                            Text("尚无收藏歌曲")
+                                .foregroundColor(Color.nghTextSecondary)
+                        }
+                        .padding(.vertical, NghSpacing.s2)
                     }
-                } header: {
-                    Text("歌曲")
                 }
+                .padding(.horizontal, NghSpacing.s4)
+                .padding(.top, NghSpacing.s2)
             }
         }
         .navigationTitle("收藏")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(Color.nghText)
+                .padding(.bottom, NghSpacing.s1)
+            content()
+        }
     }
 }
 

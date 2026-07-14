@@ -105,6 +105,22 @@ final class PlayerManager: NSObject, ObservableObject {
     func pause() { player.pause(); isPlaying = false }
     func resume() { player.play(); isPlaying = true }
 
+    /// 清空播放队列并彻底停止播放（IOS-004 修复）。
+    /// 仅 pause() 会保留 AVPlayer 内部 currentItem，resume() 仍会继续播放旧音频；
+    /// 此处 replaceCurrentItem(with: nil) 彻底移除媒体，并复位所有 @Published 状态，
+    /// 保证 UI「无播放」与音频实际停止一致。同时失效 item status 观察者。
+    func clear() {
+        player.replaceCurrentItem(with: nil)
+        itemObserver?.invalidate()
+        itemObserver = nil
+        queue = []
+        currentSong = nil
+        currentIndex = 0
+        position = 0
+        duration = 0
+        isPlaying = false
+    }
+
     func seek(toMs ms: UInt64) {
         let target = CMTime(seconds: TimeInterval(ms) / 1000.0, preferredTimescale: 600)
         player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)

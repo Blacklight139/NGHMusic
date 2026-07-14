@@ -1,5 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -26,7 +28,30 @@ public sealed partial class SearchPage : Page
     {
         InitializeComponent();
         _player = App.Player;
+        _player.CurrentSongChanged += OnCurrentSongChanged;
+        Unloaded += OnPageUnloaded;
         UpdatePageInfo();
+        UpdateCurrentHighlight();
+    }
+
+    private void OnPageUnloaded(object sender, RoutedEventArgs e)
+    {
+        _player.CurrentSongChanged -= OnCurrentSongChanged;
+    }
+
+    private void OnCurrentSongChanged(object? sender, Song? song)
+    {
+        _ = DispatcherQueue.TryEnqueue(UpdateCurrentHighlight);
+    }
+
+    /// <summary>根据 PlayerService 当前歌曲刷新列表中各行的 IsCurrent 高亮状态。</summary>
+    private void UpdateCurrentHighlight()
+    {
+        var currentId = _player.CurrentSong?.Id;
+        foreach (var vm in Songs)
+        {
+            vm.IsCurrent = vm.Id == currentId;
+        }
     }
 
     private async void SearchButton_Click(object sender, RoutedEventArgs e)
@@ -68,6 +93,7 @@ public sealed partial class SearchPage : Page
             }
             _total = result.Total;
             UpdatePageInfo();
+            UpdateCurrentHighlight();
         }
         catch (Exception ex)
         {
@@ -134,7 +160,7 @@ public sealed partial class SearchPage : Page
 }
 
 /// <summary>歌曲 ViewModel（用于 UI 绑定）。</summary>
-public sealed class SongViewModel
+public sealed class SongViewModel : INotifyPropertyChanged
 {
     public Song Source { get; }
     public string Id => Source.Id;
@@ -144,8 +170,30 @@ public sealed class SongViewModel
         ? TimeSpan.FromMilliseconds(Source.DurationMs.Value).ToString(@"mm\:ss")
         : "--:--";
 
+    private bool _isCurrent;
+    /// <summary>当前是否正在播放（用于行高亮）。</summary>
+    public bool IsCurrent
+    {
+        get => _isCurrent;
+        set
+        {
+            if (_isCurrent != value)
+            {
+                _isCurrent = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
     public SongViewModel(Song source)
     {
         Source = source;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

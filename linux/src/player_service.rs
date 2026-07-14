@@ -95,12 +95,13 @@ impl PlayerService {
             .join("nghmusic")
             .join("player_state.json");
 
-        // 从磁盘恢复音量与模式（队列需由上层重新装载）
+        // 从磁盘恢复音量与模式（队列需由上层重新装载）。
+        // 注意：不恢复 current_index，因为此时队列为空，恢复的索引无意义，
+        // 且会导致后续 load_queue 之前的 current_index() 报告陈旧值。
         if let Some(persisted) = Self::load_state_from_file(&state_file) {
             if let Ok(mut s) = state.lock() {
                 s.volume = persisted.volume;
                 s.mode = persisted.mode.clone();
-                s.current_index = persisted.index.map(|i| i as i32).unwrap_or(-1);
             }
             playbin.set_property("volume", f64::from(persisted.volume));
         }
@@ -158,16 +159,32 @@ impl PlayerService {
     // 队列与播放控制
     // =================================================================
 
-    /// 装载播放队列，重置当前索引与播放信息（不自动播放）。
-    pub fn load_queue(&self, songs: Vec<Song>) {
-        if let Ok(mut s) = self.state.lock() {
-            s.current_index = if songs.is_empty() { -1 } else { 0 };
-            s.current_song = None;
-            s.current_time = 0.0;
-            s.duration = 0.0;
-            s.is_playing = false;
-            s.queue = songs;
+    /// 装载播放队列并从 `start_index` 开始播放。
+    ///
+    /// 队列为空时停止播放并复位状态。索引越界或曲目无可播放 URL 时
+    /// 记录日志并跳过（`load_and_play` 内部处理）。
+    pub fn load_queue(&self, songs: Vec<Song>, start_index: usize) {
+        if songs.is_empty() {
+            // 空队列：停止 playbin 并复位状态
+            let _ = self.playbin.set_state(State::Null);
+            if let Ok(mut s) = self.state.lock() {
+                s.current_index = -1;
+                s.current_song = None;
+                s.current_time = 0.0;
+                s.duration = 0.0;
+                s.is_playing = false;
+                s.queue = songs;
+            }
+            Self::save_state(&self.state, &self.state_file);
+            return;
         }
+        // 非空队列：先写入队列，再从指定索引播放
+        {
+            if let Ok(mut s) = self.state.lock() {
+                s.queue = songs;
+            }
+        }
+        Self::load_and_play(&self.playbin, &self.state, &self.state_file, start_index);
     }
 
     /// 播放队列中指定索引的曲目。
@@ -547,5 +564,13 @@ impl PlayerService {
 impl Default for PlayerService {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Drop for PlayerService {
+    fn drop(&mut self) {
+        // 释放 GStreamer 资源：将 playbin 置为 NULL 状态，
+        // 停止总线监听与位置更新定时器（guard/id drop 时自动移除）。
+        let _ = self.playbin.set_state(State::Null);
     }
 }

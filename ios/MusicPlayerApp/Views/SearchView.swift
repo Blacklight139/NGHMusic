@@ -48,7 +48,7 @@ struct SearchView: View {
                 } else if songs.isEmpty && !loading {
                     EmptyState(text: "未找到匹配结果")
                 } else {
-                    SongListView(songs: songs) { song in
+                    SongListView(songs: songs, currentSongId: player.currentSong?.id) { song in
                         player.play(song: song, in: songs)
                     }
                 }
@@ -78,15 +78,19 @@ struct SearchView: View {
 /// 通用歌曲列表，onPlay 回调点击播放。
 struct SongListView: View {
     let songs: [Song]
+    /// 当前正在播放曲目 id（用于主色高亮）。
+    var currentSongId: String? = nil
     var onPlay: ((Song) -> Void)? = nil
 
     var body: some View {
         // Linear 风格：spacing 0，每行自带底部分割线，避免卡片间距造成的视觉碎片。
         VStack(spacing: 0) {
             ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                Button { onPlay?(song) } label: { SongRow(index: index + 1, song: song) }
-                    .nghPressableStyle()
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                Button { onPlay?(song) } label: {
+                    SongRow(index: index + 1, song: song, isCurrent: song.id == currentSongId)
+                }
+                .nghPressableStyle()
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         // iOS 15+：列表项出现时 staggered fade-in。
@@ -104,20 +108,28 @@ struct SongRow: View {
         // Linear 风格：行即交互时才用卡片；这里改为无背景的纯行 + 底部分割线。
         VStack(spacing: 0) {
             HStack(spacing: NghSpacing.s3) {
-                Text("\(index)")
-                    .frame(width: 20)
-                    .foregroundColor(Color.nghTextTertiary)
-                    .font(.caption)
+                // 当前播放曲目用主色 play 指示替代序号，强化高亮。
+                if isCurrent {
+                    Image(systemName: "play.circle.fill")
+                        .frame(width: 20)
+                        .foregroundColor(Color.nghPrimary)
+                        .font(.caption)
+                } else {
+                    Text("\(index)")
+                        .frame(width: 20)
+                        .foregroundColor(Color.nghTextTertiary)
+                        .font(.caption)
+                }
                 // 封面占位：nghPrimarySoft 背景 + NghRadius.sm 圆角，与 Card 图标一致。
-                Image(systemName: "music.note")
+                Image(systemName: isCurrent ? "play.fill" : "music.note")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(Color.nghPrimary)
                     .frame(width: 36, height: 36)
                     .background(Color.nghPrimarySoft)
                     .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm, style: .continuous))
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: NghSpacing.s1) {
                     Text(song.title)
-                        .fontWeight(.medium)
+                        .fontWeight(isCurrent ? .semibold : .medium)
                         .lineLimit(1)
                         .foregroundColor(isCurrent ? Color.nghPrimary : Color.nghText)
                     Text(song.artists.joined(separator: " / "))
@@ -129,13 +141,13 @@ struct SongRow: View {
                 if let durationText = durationText {
                     Text(durationText)
                         .font(.caption)
-                        .foregroundColor(Color.nghTextTertiary)
+                        .foregroundColor(isCurrent ? Color.nghPrimary : Color.nghTextTertiary)
                 }
                 // 来源标签：更小更克制。
                 Text(originTag)
                     .font(.caption2)
                     .padding(.horizontal, NghSpacing.s1)
-                    .padding(.vertical, 2)
+                    .padding(.vertical, NghSpacing.s1)
                     .background(originColor.opacity(0.1))
                     .foregroundColor(originColor)
                     .clipShape(Capsule())

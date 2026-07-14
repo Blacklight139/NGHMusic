@@ -79,7 +79,7 @@ struct SearchView: View {
             if !result.songs.isEmpty {
                 section(title: "歌曲（\(result.songs.count)）") {
                     ForEach(result.songs) { song in
-                        SongRow(song: song)
+                        SongRow(song: song, isCurrent: player.currentSong?.id == song.id)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 player.loadQueue(result.songs, startIndex: result.songs.firstIndex(where: { $0.id == song.id }) ?? 0)
@@ -95,7 +95,7 @@ struct SearchView: View {
                             Image(systemName: "music.note.list")
                                 .font(.title3)
                                 .foregroundColor(Color.nghPrimary)
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: NghSpacing.s1) {
                                 Text(album.name).font(.body)
                                 Text(album.artists.joined(separator: " / "))
                                     .font(.caption)
@@ -103,7 +103,7 @@ struct SearchView: View {
                             }
                             Spacer()
                         }
-                        .padding(.vertical, 6)
+                        .padding(.vertical, NghSpacing.s2)
                         Divider()
                     }
                 }
@@ -115,7 +115,7 @@ struct SearchView: View {
                             Image(systemName: "person.crop.circle")
                                 .font(.title3)
                                 .foregroundColor(Color.nghPrimary)
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: NghSpacing.s1) {
                                 Text(artist.name).font(.body)
                                 Text("共 \(artist.songIds.count) 首")
                                     .font(.caption)
@@ -123,7 +123,7 @@ struct SearchView: View {
                             }
                             Spacer()
                         }
-                        .padding(.vertical, 6)
+                        .padding(.vertical, NghSpacing.s2)
                         Divider()
                     }
                 }
@@ -237,20 +237,23 @@ struct SearchView: View {
 /// 通用歌曲行展示（封面占位 + 标题 + 艺术家 + 时长）。
 struct SongRow: View {
     let song: Song
+    /// 是否为当前正在播放的曲目（用于主色高亮）。
+    var isCurrent: Bool = false
     @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: NghSpacing.s3) {
-            Image(systemName: "music.note")
-                .font(.title3)
-                .frame(width: 32, height: 32)
+            Image(systemName: isCurrent ? "play.circle.fill" : "music.note")
+                .font(.title2)
+                .frame(width: 40, height: 40)
                 .background(Color.nghPrimarySoft)
                 .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm))
                 .foregroundColor(Color.nghPrimary)
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: NghSpacing.s1) {
                 Text(song.title)
                     .font(.body)
-                    .foregroundColor(Color.nghText)
+                    .foregroundColor(isCurrent ? Color.nghPrimary : Color.nghText)
+                    .fontWeight(isCurrent ? .semibold : .regular)
                     .lineLimit(1)
                 Text(song.artistsDisplay)
                     .font(.caption)

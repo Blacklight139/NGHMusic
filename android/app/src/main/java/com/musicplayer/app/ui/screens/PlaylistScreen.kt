@@ -1,6 +1,6 @@
-// 职责：播放列表屏幕，展示当前播放队列，豆包风格 Card 列表 + 统一空状态。
+// 职责：播放列表屏幕，展示当前播放队列，豆包风格线性列表（无卡片，分隔线）+ 统一空状态。
 // 数据来源：PlayerManager.state.queue（搜索/本地点击播放时写入）。
-// 同时定义跨屏幕复用的 EmptyState 组件。
+// 复用 SearchScreen.SongRowItem 保持跨页列表行一致（高度/间距/排版/当前播放高亮）。
 
 package com.musicplayer.app.ui.screens
 

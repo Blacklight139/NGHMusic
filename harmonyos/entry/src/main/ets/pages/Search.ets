@@ -1,11 +1,23 @@
-// 职责：搜索页 ArkUI 组件，搜索栏 + 结果列表（卡片化，豆包风格 ngh_* token）。
+// 职责：搜索页 ArkUI 组件，搜索栏 + 结果列表（线性列表，无卡片，豆包风格 ngh_* token）。
 // 对齐桌面端 pages/search.js：调用 MusicCoreBridge.search。
-// 点击结果调用 playerManager.playSong 拉起播放。
+// 点击结果调用 playerManager.playSong 拉起播放；当前播放歌曲以主色 + 加粗高亮。
 
 import { MusicCoreBridge } from '../bridge/MusicCoreBridge';
 import { Song } from '../models/Models';
-import { playerManager } from '../player/PlayerManager';
+import { playerManager, PlayMode } from '../player/PlayerManager';
 import { NghRadius, NghSpacing, NghFontSize } from '../common/Dimensions';
+
+interface PlayerStatus {
+  currentTitle: string;
+  currentArtist: string;
+  currentSongId: string;
+  position: number;
+  duration: number;
+  isPlaying: boolean;
+  volume: number;
+  mode: PlayMode;
+  hasPlayable: boolean;
+}
 
 @Component
 export struct SearchPage {
@@ -13,6 +25,11 @@ export struct SearchPage {
   @State pressedId: string = '';
   @State loading: boolean = false;
   @State total: number = 0;
+  @StorageLink('player_status') playerStatus: PlayerStatus = {
+    currentTitle: '未在播放', currentArtist: '—', currentSongId: '',
+    position: 0, duration: 0, isPlaying: false, volume: 0.8,
+    mode: PlayMode.SEQUENTIAL, hasPlayable: false,
+  };
   @State songs: Array<Song> = [
     {
       id: 's1', source_id: 'demo', title: '示例歌曲一', artists: ['艺术家A'],
@@ -27,30 +44,30 @@ export struct SearchPage {
 
   build() {
     Column() {
-      Text('搜索').fontSize(22).fontWeight(FontWeight.Medium)
+      Text('搜索').fontSize(NghFontSize.HEADLINE).fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.ngh_text_primary'))
-      Text('跨音源聚合检索').fontSize(12).fontColor($r('app.color.ngh_text_secondary'))
-        .margin({ top: 2 })
+      Text('跨音源聚合检索').fontSize(NghFontSize.BODY_SM).fontColor($r('app.color.ngh_text_secondary'))
+        .margin({ top: NghSpacing.S1 })
 
       Row() {
         TextInput({ placeholder: '输入歌曲 / 艺术家 / 专辑', text: this.keyword })
           .layoutWeight(1)
           .height(40)
-          .borderRadius(8)
+          .borderRadius(NghRadius.SM)
           .backgroundColor($r('app.color.ngh_surface'))
           .border({ width: 1, color: $r('app.color.ngh_border') })
           .onChange((v: string) => { this.keyword = v; })
         Button('搜索')
-          .margin({ left: 8 })
+          .margin({ left: NghSpacing.S2 })
           .backgroundColor($r('app.color.ngh_primary'))
           .onClick(() => this.doSearch())
       }
-      .margin({ top: 16 })
+      .margin({ top: NghSpacing.S4 })
 
       if (this.total > 0) {
-        Text(`共 ${this.total} 条结果`).fontSize(11)
+        Text(`共 ${this.total} 条结果`).fontSize(NghFontSize.CAPTION)
           .fontColor($r('app.color.ngh_text_tertiary'))
-          .margin({ top: 8, bottom: 4 })
+          .margin({ top: NghSpacing.S2, bottom: NghSpacing.S1 })
       }
 
       Scroll() {
@@ -64,9 +81,9 @@ export struct SearchPage {
           }
         }
       }
-      .layoutWeight(1).margin({ top: 12 })
+      .layoutWeight(1).margin({ top: NghSpacing.S3 })
     }
-    .width('100%').height('100%').padding(16)
+    .width('100%').height('100%').padding(NghSpacing.S4)
     .backgroundColor($r('app.color.ngh_background'))
   }
 
@@ -84,16 +101,17 @@ export struct SearchPage {
           .backgroundColor($r('app.color.ngh_primary_soft'))
           .borderRadius(NghRadius.SM)
         Column() {
-          Text(song.title).fontSize(NghFontSize.BODY).fontWeight(FontWeight.Medium)
-            .fontColor($r('app.color.ngh_text_primary'))
+          Text(song.title).fontSize(NghFontSize.BODY)
+            .fontWeight(song.id === this.playerStatus.currentSongId ? FontWeight.Bold : FontWeight.Medium)
+            .fontColor(song.id === this.playerStatus.currentSongId ? $r('app.color.ngh_primary') : $r('app.color.ngh_text_primary'))
             .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(song.artists.join(' / ')).fontSize(NghFontSize.CAPTION)
-            .fontColor($r('app.color.ngh_text_secondary'))
+            .fontColor(song.id === this.playerStatus.currentSongId ? $r('app.color.ngh_primary') : $r('app.color.ngh_text_secondary'))
             .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }.layoutWeight(1).margin({ left: NghSpacing.S3 })
         Text(this.originLabel(song)).fontSize(NghFontSize.CAPTION)
           .fontColor($r('app.color.ngh_text_secondary'))
-          .padding({ left: NghSpacing.S2, right: NghSpacing.S2, top: 2, bottom: 2 })
+          .padding({ left: NghSpacing.S2, right: NghSpacing.S2, top: NghSpacing.S1, bottom: NghSpacing.S1 })
           .backgroundColor($r('app.color.ngh_surface_alt'))
           .borderRadius(NghRadius.PILL)
       }
@@ -126,12 +144,12 @@ export struct SearchPage {
       SymbolGlyph($r('sys.symbol.magnifyingglass'))
         .fontSize(40)
         .fontColor([$r('app.color.ngh_text_tertiary')])
-      Text('暂无搜索结果').fontSize(14).fontWeight(FontWeight.Medium)
+      Text('暂无搜索结果').fontSize(NghFontSize.BODY).fontWeight(FontWeight.Medium)
         .fontColor($r('app.color.ngh_text_tertiary'))
-        .margin({ top: 12 })
-      Text('试试输入歌曲 / 艺术家 / 专辑').fontSize(12)
+        .margin({ top: NghSpacing.S3 })
+      Text('试试输入歌曲 / 艺术家 / 专辑').fontSize(NghFontSize.BODY_SM)
         .fontColor($r('app.color.ngh_text_tertiary'))
-        .margin({ top: 4 })
+        .margin({ top: NghSpacing.S1 })
     }
     .width('100%').padding({ top: 64, bottom: 64 })
     .alignItems(HorizontalAlign.Center)

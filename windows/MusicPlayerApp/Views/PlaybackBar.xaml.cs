@@ -23,10 +23,21 @@ public sealed partial class PlaybackBar : UserControl
         _player.PositionChanged += OnPositionChanged;
         _player.ModeChanged += OnModeChanged;
         _player.VolumeChanged += OnVolumeChanged;
+        Unloaded += OnControlUnloaded;
 
         VolumeSlider.Value = _player.Volume;
         UpdateModeIcon(_player.Mode);
         OnCurrentSongChanged(this, _player.CurrentSong);
+    }
+
+    private void OnControlUnloaded(object sender, RoutedEventArgs e)
+    {
+        // 控件从可视化树移除时取消订阅，避免 PlayerService 单例持有控件引用
+        _player.CurrentSongChanged -= OnCurrentSongChanged;
+        _player.IsPlayingChanged -= OnIsPlayingChanged;
+        _player.PositionChanged -= OnPositionChanged;
+        _player.ModeChanged -= OnModeChanged;
+        _player.VolumeChanged -= OnVolumeChanged;
     }
 
     private void OnCurrentSongChanged(object? sender, Song? song)

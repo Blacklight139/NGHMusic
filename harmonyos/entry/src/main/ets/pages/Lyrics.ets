@@ -22,18 +22,45 @@ interface PlayerStatus {
 export struct LyricsPage {
   @State currentIndex: number = 0;
   @State pressedId: string = '';
-  @StorageLink('player_status') playerStatus: PlayerStatus = {
+  // HAR-007 修复：@Watch 监听 playerStatus 变化（position 由 PlayerManager timeUpdate 回调驱动），
+  // 在 onStatusChange 中依据进度计算高亮行并滚动；原 onScrollIndex 占位回调从未更新 currentIndex。
+  @StorageLink('player_status') @Watch('onStatusChange') playerStatus: PlayerStatus = {
     currentTitle: '未在播放', currentArtist: '—', currentSongId: '',
     position: 0, duration: 0, isPlaying: false, volume: 0.8,
     mode: 0, hasPlayable: false,
   };
-  private lines: Array<LyricLine> = [
+  // 改为 @State：接入核心后由 MusicCoreBridge.getLyric 异步填充时可响应式刷新列表。
+  @State lines: Array<LyricLine> = [
     { time_ms: 0, text: '示例歌词第一行' },
     { time_ms: 5000, text: '示例歌词第二行' },
     { time_ms: 10000, text: '示例歌词第三行' },
     { time_ms: 15000, text: '示例歌词第四行' }
   ];
   private scroller: Scroller = new Scroller();
+
+  /**
+   * HAR-007 修复：playerStatus 变化时按 position 计算当前高亮行索引并滚动。
+   * 选取时间戳 <= 当前进度的最后一行；索引未变则跳过，减少不必要的重组与滚动。
+   */
+  private onStatusChange(): void {
+    const pos = this.playerStatus.position;
+    let idx = 0;
+    for (let i = 0; i < this.lines.length; i++) {
+      const t = this.lines[i].time_ms;
+      if (t === undefined) {
+        continue;
+      }
+      if (t <= pos) {
+        idx = i;
+      } else {
+        break;
+      }
+    }
+    if (idx !== this.currentIndex) {
+      this.currentIndex = idx;
+      this.scroller.scrollToIndex(idx);
+    }
+  }
 
   build() {
     Column() {
@@ -88,7 +115,8 @@ export struct LyricsPage {
       .clip(true)
       .divider({ strokeWidth: 0 })
       .onScrollIndex((start: number, end: number) => {
-        // 占位：实际由 PlayerManager position 回调驱动 currentIndex 与 scrollTo
+        // HAR-007：高亮行与滚动由 @Watch('onStatusChange') 依据 playerStatus.position 驱动，
+        // 此回调仅反映用户手动滚动范围，不用于更新 currentIndex。
       })
     }
     .width('100%').height('100%').padding(16)

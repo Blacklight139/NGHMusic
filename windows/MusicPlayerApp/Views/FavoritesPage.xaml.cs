@@ -28,7 +28,29 @@ public sealed partial class FavoritesPage : Page
         InitializeComponent();
         _player = App.Player;
         _favoritesFile = Path.Combine(ApplicationData.Current.LocalFolder.Path, "favorites.json");
+        _player.CurrentSongChanged += OnCurrentSongChanged;
+        Unloaded += OnPageUnloaded;
         _ = LoadAsync();
+    }
+
+    private void OnPageUnloaded(object sender, RoutedEventArgs e)
+    {
+        _player.CurrentSongChanged -= OnCurrentSongChanged;
+    }
+
+    private void OnCurrentSongChanged(object? sender, Song? song)
+    {
+        _ = DispatcherQueue.TryEnqueue(UpdateCurrentHighlight);
+    }
+
+    /// <summary>根据 PlayerService 当前歌曲刷新列表中各行的 IsCurrent 高亮状态。</summary>
+    private void UpdateCurrentHighlight()
+    {
+        var currentId = _player.CurrentSong?.Id;
+        foreach (var vm in Songs)
+        {
+            vm.IsCurrent = vm.Id == currentId;
+        }
     }
 
     private async Task LoadAsync()
@@ -42,10 +64,11 @@ public sealed partial class FavoritesPage : Page
             }
             var json = await File.ReadAllTextAsync(_favoritesFile);
             _rawSongs = JsonSerializer.Deserialize<List<Song>>(json, JsonOpts) ?? new();
+            var currentId = _player.CurrentSong?.Id;
             Songs.Clear();
             foreach (var s in _rawSongs)
             {
-                Songs.Add(new SongViewModel(s));
+                Songs.Add(new SongViewModel(s) { IsCurrent = s.Id == currentId });
             }
             UpdateCount();
         }
@@ -76,7 +99,7 @@ public sealed partial class FavoritesPage : Page
             return;
         }
         _rawSongs.Add(song);
-        Songs.Add(new SongViewModel(song));
+        Songs.Add(new SongViewModel(song) { IsCurrent = song.Id == _player.CurrentSong?.Id });
         await SaveAsync();
         UpdateCount();
     }

@@ -22,7 +22,29 @@ public sealed partial class LocalMusicPage : Page
     {
         InitializeComponent();
         _player = App.Player;
+        _player.CurrentSongChanged += OnCurrentSongChanged;
+        Unloaded += OnPageUnloaded;
         _ = RefreshProgressAsync();
+    }
+
+    private void OnPageUnloaded(object sender, RoutedEventArgs e)
+    {
+        _player.CurrentSongChanged -= OnCurrentSongChanged;
+    }
+
+    private void OnCurrentSongChanged(object? sender, Song? song)
+    {
+        _ = DispatcherQueue.TryEnqueue(UpdateCurrentHighlight);
+    }
+
+    /// <summary>根据 PlayerService 当前歌曲刷新列表中各行的 IsCurrent 高亮状态。</summary>
+    private void UpdateCurrentHighlight()
+    {
+        var currentId = _player.CurrentSong?.Id;
+        foreach (var vm in Songs)
+        {
+            vm.IsCurrent = vm.Id == currentId;
+        }
     }
 
     private async void AddDirButton_Click(object sender, RoutedEventArgs e)
