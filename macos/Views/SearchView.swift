@@ -38,9 +38,9 @@ struct SearchView: View {
     // MARK: - 子视图
 
     private var searchHeader: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: NghSpacing.s2) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextTertiary)
             TextField("搜索歌曲、专辑、艺术家", text: $keyword)
                 .textFieldStyle(.plain)
                 .onSubmit { performSearch(reset: true) }
@@ -51,7 +51,7 @@ struct SearchView: View {
                     errorMessage = nil
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.nghTextTertiary)
                 }
                 .buttonStyle(.plain)
             }
@@ -59,15 +59,23 @@ struct SearchView: View {
                 performSearch(reset: true)
             } label: {
                 Text("搜索")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, NghSpacing.s3)
+                    .padding(.vertical, NghSpacing.s1)
+                    .background(Color.nghPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm))
             }
+            .nghPressableStyle()
             .disabled(keyword.trimmingCharacters(in: .whitespaces).isEmpty || isLoading)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.vertical, NghSpacing.s3)
+        .background(Color.nghBackground)
     }
 
     private func resultsList(_ result: SearchResult) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: NghSpacing.s4) {
             if !result.songs.isEmpty {
                 section(title: "歌曲（\(result.songs.count)）") {
                     ForEach(result.songs) { song in
@@ -83,15 +91,15 @@ struct SearchView: View {
             if !result.albums.isEmpty {
                 section(title: "专辑（\(result.albums.count)）") {
                     ForEach(result.albums) { album in
-                        HStack(spacing: 12) {
+                        HStack(spacing: NghSpacing.s3) {
                             Image(systemName: "music.note.list")
                                 .font(.title3)
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(Color.nghPrimary)
                             VStack(alignment: .leading) {
                                 Text(album.name).font(.body)
                                 Text(album.artists.joined(separator: " / "))
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color.nghTextSecondary)
                             }
                             Spacer()
                         }
@@ -103,15 +111,15 @@ struct SearchView: View {
             if !result.artists.isEmpty {
                 section(title: "艺术家（\(result.artists.count)）") {
                     ForEach(result.artists) { artist in
-                        HStack(spacing: 12) {
+                        HStack(spacing: NghSpacing.s3) {
                             Image(systemName: "person.crop.circle")
                                 .font(.title3)
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(Color.nghPrimary)
                             VStack(alignment: .leading) {
                                 Text(artist.name).font(.body)
                                 Text("共 \(artist.songIds.count) 首")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(Color.nghTextSecondary)
                             }
                             Spacer()
                         }
@@ -125,75 +133,76 @@ struct SearchView: View {
                     Spacer()
                     Text("共 \(result.total) 条结果，当前第 \(result.page) 页")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.nghTextSecondary)
                     Spacer()
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, NghSpacing.s2)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.top, NghSpacing.s2)
     }
 
     private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.headline)
-                .padding(.bottom, 4)
+                .foregroundColor(Color.nghText)
+                .padding(.bottom, NghSpacing.s1)
             content()
         }
     }
 
     private var loadingView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: NghSpacing.s3) {
             ProgressView()
             Text("搜索中…")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func errorView(_ message: String) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: NghSpacing.s3) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
-                .foregroundColor(.orange)
+                .foregroundColor(Color.nghTextTertiary)
             Text("搜索失败")
                 .font(.headline)
             Text(message)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                .padding(.horizontal, NghSpacing.s7)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var emptyView: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: NghSpacing.s2) {
             Image(systemName: "magnifyingglass.circle")
                 .font(.largeTitle)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextTertiary)
             Text("没有找到相关结果")
                 .font(.body)
             Text("尝试使用其他关键词")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var placeholderView: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: NghSpacing.s2) {
             Image(systemName: "music.mic")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextTertiary)
             Text("搜索您喜欢的音乐")
                 .font(.title3)
             Text("支持跨音源聚合搜索")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -228,26 +237,36 @@ struct SearchView: View {
 /// 通用歌曲行展示（封面占位 + 标题 + 艺术家 + 时长）。
 struct SongRow: View {
     let song: Song
+    @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: NghSpacing.s3) {
             Image(systemName: "music.note")
                 .font(.title3)
                 .frame(width: 32, height: 32)
-                .background(Color.secondary.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .foregroundColor(.accentColor)
+                .background(Color.nghPrimarySoft)
+                .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm))
+                .foregroundColor(Color.nghPrimary)
             VStack(alignment: .leading, spacing: 2) {
-                Text(song.title).font(.body).lineLimit(1)
-                Text(song.artistsDisplay).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                Text(song.title)
+                    .font(.body)
+                    .foregroundColor(Color.nghText)
+                    .lineLimit(1)
+                Text(song.artistsDisplay)
+                    .font(.caption)
+                    .foregroundColor(Color.nghTextSecondary)
+                    .lineLimit(1)
             }
             Spacer()
             Text(song.durationDisplay)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextTertiary)
                 .monospacedDigit()
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, NghSpacing.s3)
+        .padding(.horizontal, NghSpacing.s4)
+        .background(isHovered ? Color.nghSurfaceAlt : Color.clear)
+        .onHover { isHovered = $0 }
     }
 }
 

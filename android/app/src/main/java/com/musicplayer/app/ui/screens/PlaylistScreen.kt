@@ -42,6 +42,7 @@ import com.musicplayer.app.ui.theme.TextTertiary
 fun PlaylistScreen(player: PlayerManager = viewModel()) {
     val state by player.state.collectAsState()
     val songs = state.queue
+    val currentSong = state.currentSong
 
     Column(
         modifier = Modifier
@@ -60,12 +61,13 @@ fun PlaylistScreen(player: PlayerManager = viewModel()) {
         if (songs.isEmpty()) {
             EmptyState("播放列表为空", "去搜索添加歌曲吧", icon = Icons.Filled.QueueMusic)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(NghDimensions.spacing3)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                 itemsIndexed(songs) { i, song ->
                     SongRowItem(
                         index = i + 1,
                         song = song,
-                        onClick = { player.play(song, songs) }
+                        onClick = { player.play(song, songs) },
+                        isCurrent = song == currentSong
                     )
                 }
             }

@@ -5,6 +5,7 @@
 import { MusicCoreBridge } from '../bridge/MusicCoreBridge';
 import { Song } from '../models/Models';
 import { playerManager } from '../player/PlayerManager';
+import { NghRadius, NghSpacing, NghFontSize } from '../common/Dimensions';
 
 @Component
 export struct SearchPage {
@@ -71,37 +72,52 @@ export struct SearchPage {
 
   @Builder
   SongRow(index: number, song: Song) {
-    Row() {
-      Text(`${index}`).fontSize(12).fontColor($r('app.color.ngh_text_tertiary')).width(24)
-      Column() {
-        Text(song.title).fontSize(14).fontWeight(FontWeight.Medium)
-          .fontColor($r('app.color.ngh_text_primary'))
-          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(song.artists.join(' / ')).fontSize(11).fontColor($r('app.color.ngh_text_secondary'))
-          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
-      }.layoutWeight(1).margin({ left: 8 })
-      Text(this.originLabel(song)).fontSize(11).fontColor($r('app.color.ngh_text_secondary'))
-        .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-        .backgroundColor($r('app.color.ngh_surface_alt'))
-        .borderRadius(999)
-    }
-    .width('100%').padding(16)
-    .backgroundColor($r('app.color.ngh_surface'))
-    .borderRadius(12)
-    .border({ width: 1, color: $r('app.color.ngh_border') })
-    .shadow({ radius: 8, color: '#14000000', offsetX: 0, offsetY: 2 })
-    .margin({ bottom: 12 })
-    .onClick(() => this.playSong(song))
-    .onTouch((event: TouchEvent) => {
-      if (event.type === TouchType.Down) {
-        this.pressedId = song.id;
-      } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
-        this.pressedId = '';
+    Column() {
+      Row() {
+        // 封面占位（含序号）：ngh_primary_soft 底 + ngh_primary 前景，圆角 8。
+        Text(`${index}`)
+          .fontSize(NghFontSize.BODY_SM)
+          .fontWeight(FontWeight.Medium)
+          .fontColor($r('app.color.ngh_primary'))
+          .textAlign(TextAlign.Center)
+          .width(36).height(36)
+          .backgroundColor($r('app.color.ngh_primary_soft'))
+          .borderRadius(NghRadius.SM)
+        Column() {
+          Text(song.title).fontSize(NghFontSize.BODY).fontWeight(FontWeight.Medium)
+            .fontColor($r('app.color.ngh_text_primary'))
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(song.artists.join(' / ')).fontSize(NghFontSize.CAPTION)
+            .fontColor($r('app.color.ngh_text_secondary'))
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+        }.layoutWeight(1).margin({ left: NghSpacing.S3 })
+        Text(this.originLabel(song)).fontSize(NghFontSize.CAPTION)
+          .fontColor($r('app.color.ngh_text_secondary'))
+          .padding({ left: NghSpacing.S2, right: NghSpacing.S2, top: 2, bottom: 2 })
+          .backgroundColor($r('app.color.ngh_surface_alt'))
+          .borderRadius(NghRadius.PILL)
       }
-    })
-    .scale(this.pressedId === song.id ? { x: 0.97, y: 0.97 } : { x: 1, y: 1 })
-    .animation({ duration: 150, curve: Curve.EaseOut })
-    .transition({ type: TransitionType.All, opacity: 0, translate: { y: 12 } })
+      .width('100%')
+      .padding({ left: NghSpacing.S4, right: NghSpacing.S4, top: NghSpacing.S3, bottom: NghSpacing.S3 })
+      .onClick(() => this.playSong(song))
+      .onTouch((event: TouchEvent) => {
+        if (event.type === TouchType.Down) {
+          this.pressedId = song.id;
+        } else if (event.type === TouchType.Up || event.type === TouchType.Cancel) {
+          this.pressedId = '';
+        }
+      })
+      .scale(this.pressedId === song.id ? { x: 0.97, y: 0.97 } : { x: 1, y: 1 })
+      .animation({ duration: 150, curve: Curve.EaseOut })
+      .transition({ type: TransitionType.All, opacity: 0, translate: { y: 12 } })
+
+      // 底部分隔线：替代卡片描边，Linear 风格。
+      Row()
+        .width('100%')
+        .height(0.5)
+        .backgroundColor($r('app.color.ngh_border'))
+        .margin({ left: NghSpacing.S4, right: NghSpacing.S4 })
+    }
   }
 
   @Builder

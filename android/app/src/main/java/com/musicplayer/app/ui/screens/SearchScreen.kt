@@ -7,7 +7,9 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,19 +17,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -40,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,14 +51,15 @@ import com.musicplayer.app.models.SongOrigin
 import com.musicplayer.app.player.PlayerManager
 import com.musicplayer.app.repository.MusicRepository
 import com.musicplayer.app.ui.theme.Background
+import com.musicplayer.app.ui.theme.BorderSoft
 import com.musicplayer.app.ui.theme.Danger
 import com.musicplayer.app.ui.theme.NghDimensions
 import com.musicplayer.app.ui.theme.Primary
-import com.musicplayer.app.ui.theme.Surface
+import com.musicplayer.app.ui.theme.PrimarySoft
+import com.musicplayer.app.ui.theme.SurfaceAlt
 import com.musicplayer.app.ui.theme.TextPrimary
 import com.musicplayer.app.ui.theme.TextSecondary
 import com.musicplayer.app.ui.theme.TextTertiary
-import com.musicplayer.app.ui.theme.nghClickableScale
 import kotlinx.coroutines.launch
 
 @Composable
@@ -121,7 +125,7 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
         if (songs.isEmpty() && !loading) {
             EmptyState("暂无搜索结果", "输入关键词后点击搜索", icon = Icons.Filled.Search)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(NghDimensions.spacing3)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                 itemsIndexed(songs) { i, song ->
                     SongRowItem(
                         index = i + 1,
@@ -136,26 +140,52 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun LazyItemScope.SongRowItem(index: Int, song: Song, onClick: () -> Unit = {}) {
-    Card(
+fun LazyItemScope.SongRowItem(
+    index: Int,
+    song: Song,
+    onClick: () -> Unit = {},
+    isCurrent: Boolean = false
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .animateItemPlacement(tween(200, easing = FastOutSlowInEasing))
-            .nghClickableScale { onClick() },
-        shape = RoundedCornerShape(NghDimensions.radiusMd),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(NghDimensions.spacing4),
+                .clickable { onClick() }
+                .padding(horizontal = NghDimensions.spacing4, vertical = NghDimensions.spacing3),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("$index", color = TextTertiary, fontSize = 12.sp, modifier = Modifier.width(24.dp))
+            Text(
+                "$index",
+                color = TextTertiary,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.width(24.dp)
+            )
             Spacer(Modifier.width(NghDimensions.spacing2))
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(NghDimensions.radiusSm))
+                    .background(PrimarySoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.MusicNote,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.width(NghDimensions.spacing3))
             Column(Modifier.weight(1f)) {
-                Text(song.title, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                Text(
+                    song.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (isCurrent) Primary else TextPrimary
+                )
                 Text(
                     song.artists.joinToString(" / "),
                     style = MaterialTheme.typography.labelMedium,
@@ -168,7 +198,19 @@ fun LazyItemScope.SongRowItem(index: Int, song: Song, onClick: () -> Unit = {}) 
                 is SongOrigin.Local -> "本地"
                 is SongOrigin.Nas -> "NAS"
             }
-            AssistChip(onClick = onClick, label = { Text(originLabel, fontSize = 11.sp) })
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(NghDimensions.radiusPill))
+                    .background(SurfaceAlt)
+                    .padding(horizontal = NghDimensions.spacing2, vertical = NghDimensions.spacing1)
+            ) {
+                Text(
+                    originLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+            }
         }
+        HorizontalDivider(color = BorderSoft, thickness = 1.dp)
     }
 }

@@ -5,8 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Height="80"
     Padding="16,8,16,8"
-    Background="{ThemeResource LayerFillColorDefaultBrush}"
-    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+    Background="{ThemeResource NghSurfaceBrush}"
+    BorderBrush="{ThemeResource NghBorderBrush}"
     BorderThickness="0,1,0,0">
 
     <Grid RowSpacing="4">
@@ -28,7 +28,7 @@
                 Text="00:00"
                 FontSize="11"
                 VerticalAlignment="Center"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                Foreground="{ThemeResource NghTextTertiaryBrush}" />
             <Slider
                 x:Name="ProgressSlider"
                 Grid.Column="1"
@@ -46,7 +46,7 @@
                 Text="00:00"
                 FontSize="11"
                 VerticalAlignment="Center"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                Foreground="{ThemeResource NghTextTertiaryBrush}" />
         </Grid>
 
         <!-- 控制栏 -->
@@ -66,8 +66,8 @@
                 <Border
                     Width="48"
                     Height="48"
-                    CornerRadius="4"
-                    Background="{ThemeResource AccentFillColorDefaultBrush}">
+                    CornerRadius="8"
+                    Background="{ThemeResource NghPrimaryBrush}">
                     <FontIcon
                         Glyph="&#xE8D6;"
                         FontSize="24"
@@ -79,16 +79,12 @@
                     <TextBlock
                         x:Name="SongTitleText"
                         Text="未播放"
-                        FontSize="14"
-                        FontWeight="SemiBold"
-                        TextTrimming="CharacterEllipsis"
+                        Style="{StaticResource NghSongTitleStyle}"
                         MaxWidth="200" />
                     <TextBlock
                         x:Name="SongArtistText"
                         Text=""
-                        FontSize="11"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        TextTrimming="CharacterEllipsis"
+                        Style="{StaticResource NghSongArtistStyle}"
                         MaxWidth="200" />
                 </StackPanel>
             </StackPanel>
@@ -103,16 +99,15 @@
                 <Button
                     x:Name="PrevButton"
                     Click="PrevButton_Click"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="8"
+                    Style="{StaticResource NghGhostButtonStyle}"
                     ToolTipService.ToolTip="上一曲">
                     <FontIcon Glyph="&#xE892;" FontSize="18" />
                 </Button>
                 <Button
                     x:Name="PlayPauseButton"
                     Click="PlayPauseButton_Click"
-                    Style="{StaticResource AccentButtonStyle}"
+                    Style="{StaticResource NghPrimaryButtonStyle}"
+                    CornerRadius="20"
                     Padding="12"
                     ToolTipService.ToolTip="播放/暂停">
                     <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE768;" FontSize="20" />
@@ -120,18 +115,14 @@
                 <Button
                     x:Name="NextButton"
                     Click="NextButton_Click"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="8"
+                    Style="{StaticResource NghGhostButtonStyle}"
                     ToolTipService.ToolTip="下一曲">
                     <FontIcon Glyph="&#xE893;" FontSize="18" />
                 </Button>
                 <Button
                     x:Name="ModeButton"
                     Click="ModeButton_Click"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="8"
+                    Style="{StaticResource NghGhostButtonStyle}"
                     ToolTipService.ToolTip="播放模式">
                     <FontIcon x:Name="ModeIcon" Glyph="&#xE1CE;" FontSize="16" />
                 </Button>
@@ -151,7 +142,7 @@
                     BorderThickness="0"
                     Padding="6"
                     ToolTipService.ToolTip="静音">
-                    <FontIcon x:Name="VolumeIcon" Glyph="&#xE767;" FontSize="14" />
+                    <FontIcon x:Name="VolumeIcon" Glyph="&#xE767;" FontSize="14" Foreground="{ThemeResource NghTextSecondaryBrush}" />
                 </Button>
                 <Slider
                     x:Name="VolumeSlider"

@@ -65,15 +65,16 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(spacing: 0) {
             // 品牌头部
-            HStack(spacing: 8) {
+            HStack(spacing: NghSpacing.s2) {
                 Image(systemName: "music.note")
                     .font(.title2)
-                    .foregroundColor(.accentColor)
+                    .foregroundColor(Color.nghPrimary)
                 Text("逆光音乐")
                     .font(.title3.bold())
+                    .foregroundColor(Color.nghText)
                 Spacer()
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, NghSpacing.s4)
             .padding(.vertical, 14)
 
             Divider()
@@ -90,15 +91,16 @@ struct ContentView: View {
             // 底部信息条
             HStack {
                 Image(systemName: "music.mic")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.nghTextSecondary)
                 Text("NGHMusic · macOS")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.nghTextSecondary)
                 Spacer()
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, NghSpacing.s4)
             .padding(.vertical, 10)
         }
+        .background(Color.nghSidebarBackground)
     }
 
     // MARK: - 详情视图
@@ -127,7 +129,7 @@ struct ContentView: View {
                     SettingsView()
                 case .none:
                     Text("请选择左侧功能页")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.nghTextSecondary)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -137,6 +139,7 @@ struct ContentView: View {
                 .frame(height: 72)
         }
         .navigationTitle(selection?.title ?? "")
+        .background(Color.nghBackground)
     }
 }
 

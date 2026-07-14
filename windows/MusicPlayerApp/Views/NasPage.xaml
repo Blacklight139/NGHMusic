@@ -16,8 +16,7 @@
         <TextBlock
             Grid.Row="0"
             Text="NAS / 协议音源"
-            FontSize="28"
-            FontWeight="SemiBold" />
+            Style="{StaticResource NghPageTitleStyle}" />
 
         <Selector
             Grid.Row="1"
@@ -47,7 +46,7 @@
                             x:Name="HealthIcon"
                             Glyph="&#xE9D9;"
                             FontSize="16"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            Foreground="{ThemeResource NghTextSecondaryBrush}" />
                         <TextBlock x:Name="HealthText" Text="未检测" VerticalAlignment="Center" FontSize="13" />
                         <Button Click="HealthCheckButton_Click" Background="Transparent" BorderThickness="0" Padding="4">
                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -63,7 +62,7 @@
                         <TextBox x:Name="BaseUrlBox" PlaceholderText="服务地址，如 https://nas.example.com" />
                         <TextBox x:Name="UsernameBox" PlaceholderText="用户名" />
                         <PasswordBox x:Name="PasswordBox" PlaceholderText="密码" />
-                        <Button Click="LoginButton_Click" Style="{StaticResource AccentButtonStyle}">
+                        <Button Click="LoginButton_Click" Style="{StaticResource NghPrimaryButtonStyle}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE77B;" FontSize="14" />
                                 <TextBlock Text="登录" />
@@ -90,7 +89,7 @@
                             IsItemClickEnabled="True"
                             ItemClick="FilesList_ItemClick"
                             BorderThickness="1"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderBrush="{ThemeResource NghBorderBrush}"
                             CornerRadius="4"
                             MinHeight="200">
                             <ListView.ItemTemplate>
@@ -105,13 +104,13 @@
                                             Grid.Column="0"
                                             Glyph="{x:Bind IconGlyph}"
                                             FontSize="16"
-                                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            Foreground="{ThemeResource NghPrimaryBrush}" />
                                         <StackPanel Grid.Column="1" Spacing="2">
                                             <TextBlock Text="{x:Bind Name}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                             <TextBlock
                                                 Text="{x:Bind MetaText}"
                                                 FontSize="11"
-                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Foreground="{ThemeResource NghTextSecondaryBrush}"
                                                 TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
                                         <TextBlock
@@ -119,7 +118,7 @@
                                             Text="{x:Bind SizeText}"
                                             FontSize="12"
                                             VerticalAlignment="Center"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            Foreground="{ThemeResource NghTextSecondaryBrush}" />
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -136,7 +135,7 @@
                             <FontIcon Glyph="&#xE72C;" FontSize="14" />
                         </Button>
                     </StackPanel>
-                    <TextBlock x:Name="ProtocolHintText" Text="协议源添加 / 删除请在设置页管理" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock x:Name="ProtocolHintText" Text="协议源添加 / 删除请在设置页管理" FontSize="11" Foreground="{ThemeResource NghTextSecondaryBrush}" />
 
                     <!-- 协议浏览路径 -->
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -156,7 +155,7 @@
                         IsItemClickEnabled="True"
                         ItemClick="ProtocolEntriesList_ItemClick"
                         BorderThickness="1"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderBrush="{ThemeResource NghBorderBrush}"
                         CornerRadius="4"
                         MinHeight="200">
                         <ListView.ItemTemplate>
@@ -170,7 +169,7 @@
                                         Grid.Column="0"
                                         Glyph="{x:Bind IconGlyph}"
                                         FontSize="16"
-                                        Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                        Foreground="{ThemeResource NghPrimaryBrush}" />
                                     <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="14" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                 </Grid>
                             </DataTemplate>

@@ -24,6 +24,7 @@ let package = Package(
                 "ContentView.swift",
                 "Models",
                 "Services",
+                "Theme",
                 "Views"
             ],
             resources: [],

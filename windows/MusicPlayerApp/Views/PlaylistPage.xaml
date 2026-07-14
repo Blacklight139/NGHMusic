@@ -15,8 +15,7 @@
         <TextBlock
             Grid.Row="0"
             Text="当前播放列表"
-            FontSize="28"
-            FontWeight="SemiBold" />
+            Style="{StaticResource NghPageTitleStyle}" />
 
         <StackPanel
             Grid.Row="1"
@@ -32,7 +31,7 @@
                 x:Name="CountText"
                 VerticalAlignment="Center"
                 FontSize="13"
-                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                Foreground="{ThemeResource NghTextSecondaryBrush}" />
         </StackPanel>
 
         <ListView
@@ -54,14 +53,12 @@
                             Grid.Column="0"
                             Glyph="&#xE8D6;"
                             FontSize="16"
-                            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            Foreground="{ThemeResource NghPrimaryBrush}" />
                         <StackPanel Grid.Column="1" Spacing="2">
-                            <TextBlock Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{x:Bind Title}" Style="{StaticResource NghSongTitleStyle}" />
                             <TextBlock
                                 Text="{x:Bind ArtistsText}"
-                                FontSize="12"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                TextTrimming="CharacterEllipsis" />
+                                Style="{StaticResource NghSongArtistStyle}" />
                         </StackPanel>
                         <Button
                             Grid.Column="2"

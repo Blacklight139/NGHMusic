@@ -59,8 +59,8 @@ struct LocalMusicView: View {
                 Label("刷新进度", systemImage: "arrow.clockwise")
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.vertical, NghSpacing.s3)
         .fileImporter(
             isPresented: $showFolderPicker,
             allowedContentTypes: [.folder]
@@ -80,19 +80,19 @@ struct LocalMusicView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("已添加扫描目录")
                 .font(.headline)
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding(.horizontal, NghSpacing.s4)
+                .padding(.top, NghSpacing.s2)
             if scanDirs.isEmpty {
                 Text("尚未添加任何目录")
                     .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 16)
+                    .foregroundColor(Color.nghTextSecondary)
+                    .padding(.horizontal, NghSpacing.s4)
                     .padding(.vertical, 6)
             } else {
                 ForEach(scanDirs, id: \.self) { dir in
                     HStack(spacing: 8) {
                         Image(systemName: "folder")
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(Color.nghPrimary)
                         Text(dir.path)
                             .font(.caption)
                             .lineLimit(1)
@@ -102,16 +102,16 @@ struct LocalMusicView: View {
                             removeDirectory(dir)
                         } label: {
                             Image(systemName: "minus.circle")
-                                .foregroundColor(.red)
+                                .foregroundColor(Color.nghDanger)
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, NghSpacing.s4)
                     .padding(.vertical, 4)
                 }
             }
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, NghSpacing.s2)
     }
 
     private var progressSection: some View {
@@ -122,17 +122,17 @@ struct LocalMusicView: View {
                 if p.scanning {
                     Label("扫描中…", systemImage: "arrow.triangle.2.circlepath.circle")
                         .font(.caption)
-                        .foregroundColor(.accentColor)
+                        .foregroundColor(Color.nghPrimary)
                 }
             } else {
                 Text("进度未知")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.nghTextSecondary)
             }
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, NghSpacing.s4)
+        .padding(.vertical, NghSpacing.s2)
     }
 
     private var songsList: some View {
@@ -140,7 +140,7 @@ struct LocalMusicView: View {
             LazyVStack(spacing: 0) {
                 ForEach(songs) { song in
                     SongRow(song: song)
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, NghSpacing.s4)
                         Divider().padding(.leading, 56)
                 }
             }
@@ -152,7 +152,7 @@ struct LocalMusicView: View {
             ProgressView()
             Text("加载中…")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -161,12 +161,12 @@ struct LocalMusicView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
-                .foregroundColor(.orange)
+                .foregroundColor(Color.nghWarning)
             Text("操作失败")
                 .font(.headline)
             Text(message)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }
@@ -177,12 +177,12 @@ struct LocalMusicView: View {
         VStack(spacing: 8) {
             Image(systemName: "music.note.house")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
             Text("尚未发现本地音乐")
                 .font(.title3)
             Text("点击上方“添加目录”开始扫描本地音乐")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color.nghTextSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

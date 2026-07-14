@@ -22,20 +22,19 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.musicplayer.app.player.PlayerManager
 import com.musicplayer.app.ui.theme.Background
 import com.musicplayer.app.ui.theme.NghDimensions
-import com.musicplayer.app.ui.theme.Surface
+import com.musicplayer.app.ui.theme.SurfaceAlt
 import com.musicplayer.app.ui.theme.TextPrimary
 import com.musicplayer.app.ui.theme.TextSecondary
 import com.musicplayer.app.ui.theme.nghClickableScale
@@ -91,24 +90,22 @@ fun LazyGridItemScope.GroupCard(
     subtitle: String,
     onClick: () -> Unit = {}
 ) {
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .animateItemPlacement(tween(200, easing = FastOutSlowInEasing))
-            .nghClickableScale { onClick() },
-        shape = RoundedCornerShape(NghDimensions.radiusMd),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .nghClickableScale { onClick() }
+            .clip(RoundedCornerShape(NghDimensions.radiusMd))
+            .background(SurfaceAlt)
+            .padding(NghDimensions.spacing4)
     ) {
-        Column(Modifier.padding(NghDimensions.spacing4)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                color = TextPrimary,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.height(NghDimensions.spacing1))
-            Text(subtitle, style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            color = TextPrimary,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(Modifier.height(NghDimensions.spacing1))
+        Text(subtitle, style = MaterialTheme.typography.labelMedium, color = TextSecondary)
     }
 }

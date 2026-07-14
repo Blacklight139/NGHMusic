@@ -18,8 +18,8 @@ struct FavoritesView: View {
                     Label("新建", systemImage: "plus")
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, NghSpacing.s4)
+            .padding(.vertical, NghSpacing.s3)
             Divider()
 
             List {
@@ -32,7 +32,7 @@ struct FavoritesView: View {
                             Spacer()
                             Text("0")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Color.nghTextSecondary)
                         }
                     }
                 }
@@ -40,9 +40,9 @@ struct FavoritesView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "heart.slash")
                             .font(.title3)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.nghTextSecondary)
                         Text("尚无收藏歌曲")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Color.nghTextSecondary)
                     }
                 } header: {
                     Text("歌曲")

@@ -81,7 +81,8 @@ struct SongListView: View {
     var onPlay: ((Song) -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: NghSpacing.s3) {
+        // Linear 风格：spacing 0，每行自带底部分割线，避免卡片间距造成的视觉碎片。
+        VStack(spacing: 0) {
             ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
                 Button { onPlay?(song) } label: { SongRow(index: index + 1, song: song) }
                     .nghPressableStyle()
@@ -96,25 +97,62 @@ struct SongListView: View {
 struct SongRow: View {
     let index: Int
     let song: Song
+    /// 是否为当前正在播放的曲目（播放列表用于高亮）。
+    var isCurrent: Bool = false
+
     var body: some View {
-        HStack(spacing: NghSpacing.s3) {
-            Text("\(index)").frame(width: 24)
-                .foregroundColor(Color.nghTextTertiary).font(.caption)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(song.title).fontWeight(.medium).lineLimit(1)
-                    .foregroundColor(Color.nghText)
-                Text(song.artists.joined(separator: " / "))
-                    .font(.caption).foregroundColor(Color.nghTextSecondary).lineLimit(1)
+        // Linear 风格：行即交互时才用卡片；这里改为无背景的纯行 + 底部分割线。
+        VStack(spacing: 0) {
+            HStack(spacing: NghSpacing.s3) {
+                Text("\(index)")
+                    .frame(width: 20)
+                    .foregroundColor(Color.nghTextTertiary)
+                    .font(.caption)
+                // 封面占位：nghPrimarySoft 背景 + NghRadius.sm 圆角，与 Card 图标一致。
+                Image(systemName: "music.note")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color.nghPrimary)
+                    .frame(width: 36, height: 36)
+                    .background(Color.nghPrimarySoft)
+                    .clipShape(RoundedRectangle(cornerRadius: NghRadius.sm, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(song.title)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                        .foregroundColor(isCurrent ? Color.nghPrimary : Color.nghText)
+                    Text(song.artists.joined(separator: " / "))
+                        .font(.caption)
+                        .foregroundColor(Color.nghTextSecondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                if let durationText = durationText {
+                    Text(durationText)
+                        .font(.caption)
+                        .foregroundColor(Color.nghTextTertiary)
+                }
+                // 来源标签：更小更克制。
+                Text(originTag)
+                    .font(.caption2)
+                    .padding(.horizontal, NghSpacing.s1)
+                    .padding(.vertical, 2)
+                    .background(originColor.opacity(0.1))
+                    .foregroundColor(originColor)
+                    .clipShape(Capsule())
             }
-            Spacer()
-            Text(originTag).font(.caption2)
-                .padding(.horizontal, NghSpacing.s2).padding(.vertical, 2)
-                .background(originColor.opacity(0.12)).foregroundColor(originColor)
-                .clipShape(Capsule())
+            .padding(.horizontal, NghSpacing.s4)
+            .padding(.vertical, NghSpacing.s3)
+            Divider()
         }
-        .padding(NghSpacing.s4)
-        .background(RoundedRectangle(cornerRadius: NghRadius.md, style: .continuous).fill(Color.nghSurface))
-        .nghCardShadow()
+    }
+
+    /// 时长文本「m:ss」，durationMs 为空时不展示。
+    private var durationText: String? {
+        guard let ms = song.durationMs, ms > 0 else { return nil }
+        let totalSeconds = Int(ms / 1000)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 
     /// 来源标签：根据 SongOrigin 显示「在线/本地/NAS」。
