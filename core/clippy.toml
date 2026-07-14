@@ -18,3 +18,6 @@ literal-representation-threshold = 10000
 
 # 单个函数过长行数阈值（与 `clippy::too_many_lines` 对齐）。
 too-many-arguments-threshold = 7
+
+# 类型复杂度阈值（与 `clippy::type_complexity` 对齐）：嵌套类型过深时提示。
+type-complexity-threshold = 250

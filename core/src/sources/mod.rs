@@ -262,6 +262,14 @@ impl SourceManager {
         &self.ordered
     }
 
+    /// 按 id 查找音源，返回其 `Arc` 引用（含已禁用项），供 FFI 等上层按 id 调用 trait 方法。
+    pub fn get_source(&self, id: &str) -> Option<Arc<dyn Source>> {
+        self.entries
+            .iter()
+            .find(|e| e.source.id() == id)
+            .map(|e| Arc::clone(&e.source))
+    }
+
     /// 设置持久化路径并加载已保存的顺序/启停状态应用到当前已注册音源。
     ///
     /// 应用启动流程：先 `add_source` / `import_source_from_json` 注册各音源，

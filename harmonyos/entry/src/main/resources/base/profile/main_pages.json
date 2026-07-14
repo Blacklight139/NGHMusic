@@ -9,6 +9,7 @@
     "pages/Leaderboard",
     "pages/LocalMusic",
     "pages/Lyrics",
+    "pages/Nas",
     "pages/Settings"
   ]
 }

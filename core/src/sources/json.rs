@@ -38,7 +38,22 @@ pub struct JsonSource {
 
 impl JsonSource {
     /// 构造音源：根据 `config.timeout_ms` 构建 reqwest 客户端，默认 10s。
+    ///
+    /// 构造期会校验所有 endpoint URL 是否指向允许的外网地址，
+    /// 阻断恶意音源 JSON 配置通过指定内网地址（如 169.254.169.254 云元数据、
+    /// 127.0.0.1 本机、192.168.x.x 私网）发起 SSRF 攻击。
     pub fn new(config: SoundSourceConfig) -> Result<Self> {
+        // SSRF 防御：在导入期校验所有 endpoint URL，恶意源在导入时即被拒绝。
+        validate_endpoint_url(&config.endpoints.search.url)?;
+        validate_endpoint_url(&config.endpoints.metadata.url)?;
+        validate_endpoint_url(&config.endpoints.play_url.url)?;
+        if let Some(ep) = &config.endpoints.lyric {
+            validate_endpoint_url(&ep.url)?;
+        }
+        if let Some(ep) = &config.endpoints.leaderboards {
+            validate_endpoint_url(&ep.url)?;
+        }
+
         let timeout_ms = if config.timeout_ms > 0.0 {
             config.timeout_ms
         } else {
@@ -369,6 +384,89 @@ impl Source for JsonSource {
         }
         Ok(result)
     }
+}
+
+/// 校验 endpoint URL 是否指向允许的外网地址。
+///
+/// 防御 SSRF：恶意音源 JSON 配置可能指定内网地址（如 `169.254.169.254` 云元数据、
+/// `127.0.0.1` 本机、`192.168.x.x` 私网、`fe80::` 链路本地）使播放器代为访问内网服务。
+/// 本函数在音源导入期对所有 endpoint URL 做静态校验，命中黑名单的源在导入时即被拒绝。
+///
+/// 规则：
+/// - 仅允许 `http`/`https` scheme；
+/// - 拒绝字面量主机名 `localhost`；
+/// - 拒绝解析为回环/未指定/链路本地/多播/私网/CGNAT/保留段的 IPv4/IPv6 字面量；
+/// - 域名（非字面量 IP）默认放行：运行时由本机网络栈承担 DNS 解析后的访问控制。
+fn validate_endpoint_url(url: &str) -> Result<()> {
+    let parsed = url::Url::parse(url)
+        .map_err(|e| CoreError::Source(format!("音源 endpoint URL 非法: {e}")))?;
+    match parsed.scheme() {
+        "http" | "https" => {}
+        s => {
+            return Err(CoreError::Source(format!(
+                "音源 endpoint URL 仅允许 http/https，实际为 {s}: {url}"
+            )));
+        }
+    }
+    // 使用 host() 返回类型化 Host 枚举，避免 host_str() 对 IPv6 含括号导致 parse 失败
+    match parsed.host() {
+        None => {
+            return Err(CoreError::Source(format!(
+                "音源 endpoint URL 缺少 host: {url}"
+            )));
+        }
+        Some(url::Host::Domain(d)) if d.eq_ignore_ascii_case("localhost") => {
+            return Err(CoreError::Source(format!(
+                "音源 endpoint URL 禁止指向 localhost: {url}"
+            )));
+        }
+        Some(url::Host::Ipv4(ip4)) if is_disallowed_ipv4(&ip4) => {
+            return Err(CoreError::Source(format!(
+                "音源 endpoint URL 禁止指向内网/保留地址 {ip4}: {url}"
+            )));
+        }
+        Some(url::Host::Ipv6(ip6)) if is_disallowed_ipv6(&ip6) => {
+            return Err(CoreError::Source(format!(
+                "音源 endpoint URL 禁止指向内网/保留地址 {ip6}: {url}"
+            )));
+        }
+        _ => {} // 公网域名 / 公网 IP 字面量放行
+    }
+    Ok(())
+}
+
+/// IPv4 黑名单：本机网络/私网/CGNAT/回环/链路本地/保留/多播/文档用途网段。
+fn is_disallowed_ipv4(ip: &std::net::Ipv4Addr) -> bool {
+    let o = ip.octets();
+    o[0] == 0 // 0.0.0.0/8 本机网络
+        || o[0] == 10 // 10.0.0.0/8 RFC1918
+        || (o[0] == 100 && (o[1] & 0xc0) == 64) // 100.64.0.0/10 RFC6598 CGNAT
+        || o[0] == 127 // 127.0.0.0/8 回环
+        || (o[0] == 169 && o[1] == 254) // 169.254.0.0/16 链路本地（含云元数据）
+        || (o[0] == 172 && (o[1] & 0xf0) == 16) // 172.16.0.0/12 RFC1918
+        || (o[0] == 192 && o[1] == 0 && (o[2] == 0 || o[2] == 2)) // 192.0.0.0/24, 192.0.2.0/24
+        || (o[0] == 192 && o[1] == 88 && o[2] == 99) // 192.88.99.0/24
+        || (o[0] == 192 && o[1] == 168) // 192.168.0.0/16 RFC1918
+        || (o[0] == 198 && (o[1] == 18 || o[1] == 19)) // 198.18.0.0/15 基准测试
+        || (o[0] == 198 && o[1] == 51 && o[2] == 100) // 198.51.100.0/24 TEST-NET-2
+        || (o[0] == 203 && o[1] == 0 && o[2] == 113) // 203.0.113.0/24 TEST-NET-3
+        || (o[0] & 0xf0) == 0xe0 // 224.0.0.0/4 多播
+        || (o[0] & 0xf0) == 0xf0 // 240.0.0.0/4 保留
+}
+
+/// IPv6 黑名单：回环/未指定/链路本地/唯一本地/多播；IPv4-mapped 按对应 IPv4 检查。
+fn is_disallowed_ipv6(ip: &std::net::Ipv6Addr) -> bool {
+    let o = ip.octets();
+    ip.is_loopback()
+        || ip.is_unspecified()
+        || ip.is_multicast()
+        || (o[0] == 0xfe && (o[1] & 0xc0) == 0x80) // fe80::/10 链路本地
+        || (o[0] & 0xfe) == 0xfc // fc00::/7 唯一本地
+        // IPv4-mapped ::ffff:a.b.c.d：按对应 IPv4 规则检查
+        || (o[0..10] == [0u8; 10]
+            && o[10] == 0xff
+            && o[11] == 0xff
+            && is_disallowed_ipv4(&std::net::Ipv4Addr::new(o[12], o[13], o[14], o[15])))
 }
 
 /// 按 mapping 描述的字段名/点路径从 JSON 值中取子值。
@@ -775,5 +873,81 @@ mod tests {
         assert_eq!(source.name(), "Demo");
         assert!(source.enabled);
         assert_eq!(source.priority, 0);
+    }
+
+    /// SSRF 防御：合法公网 endpoint URL（example.com）应通过校验。
+    #[test]
+    fn validate_endpoint_url_allows_public_domain() {
+        assert!(validate_endpoint_url("https://example.com/api").is_ok());
+        assert!(validate_endpoint_url("http://music.example.com/search?q=1").is_ok());
+        // 公网 IP 字面量允许（8.8.8.8）
+        assert!(validate_endpoint_url("https://8.8.8.8/api").is_ok());
+    }
+
+    /// SSRF 防御：非 http/https scheme 应被拒绝。
+    #[test]
+    fn validate_endpoint_url_rejects_non_http_scheme() {
+        assert!(validate_endpoint_url("file:///etc/passwd").is_err());
+        assert!(validate_endpoint_url("ftp://example.com/file").is_err());
+        assert!(validate_endpoint_url("gopher://example.com/").is_err());
+    }
+
+    /// SSRF 防御：localhost / 回环 / 链路本地 / 私网 IPv4 字面量应被拒绝。
+    #[test]
+    fn validate_endpoint_url_rejects_internal_ipv4() {
+        // localhost 字面量
+        assert!(validate_endpoint_url("http://localhost/api").is_err());
+        assert!(validate_endpoint_url("http://LocalHost:8080/api").is_err());
+        // 回环
+        assert!(validate_endpoint_url("http://127.0.0.1/api").is_err());
+        assert!(validate_endpoint_url("http://127.1.2.3/api").is_err());
+        // 链路本地（含云元数据 169.254.169.254）
+        assert!(validate_endpoint_url("http://169.254.169.254/latest/meta-data/").is_err());
+        // 私网
+        assert!(validate_endpoint_url("http://10.0.0.1/api").is_err());
+        assert!(validate_endpoint_url("http://192.168.1.1/api").is_err());
+        assert!(validate_endpoint_url("http://172.16.0.1/api").is_err());
+        // 未指定 / 本机网络
+        assert!(validate_endpoint_url("http://0.0.0.0/api").is_err());
+        // CGNAT
+        assert!(validate_endpoint_url("http://100.64.0.1/api").is_err());
+        // 多播 / 保留
+        assert!(validate_endpoint_url("http://224.0.0.1/api").is_err());
+        assert!(validate_endpoint_url("http://240.0.0.1/api").is_err());
+    }
+
+    /// SSRF 防御：IPv6 回环 / 链路本地 / 唯一本地 / IPv4-mapped 内网应被拒绝。
+    #[test]
+    fn validate_endpoint_url_rejects_internal_ipv6() {
+        assert!(validate_endpoint_url("http://[::1]/api").is_err());
+        assert!(validate_endpoint_url("http://[::]/api").is_err());
+        assert!(validate_endpoint_url("http://[fe80::1]/api").is_err());
+        assert!(validate_endpoint_url("http://[fc00::1]/api").is_err());
+        assert!(validate_endpoint_url("http://[ff02::1]/api").is_err());
+        // IPv4-mapped ::ffff:127.0.0.1 应被拒绝
+        assert!(validate_endpoint_url("http://[::ffff:127.0.0.1]/api").is_err());
+        assert!(validate_endpoint_url("http://[::ffff:169.254.169.254]/api").is_err());
+    }
+
+    /// SSRF 防御：音源导入时若任一 endpoint 命中黑名单应在 JsonSource::new 即失败。
+    #[test]
+    fn json_source_new_rejects_ssrf_endpoint() {
+        let config_json = serde_json::json!({
+            "manifest": { "id": "evil", "name": "Evil", "version": "1.0.0", "author": "x" },
+            "endpoints": {
+                "search": { "url": "http://169.254.169.254/latest/meta-data/" },
+                "metadata": { "url": "https://example.com/m" },
+                "playUrl": { "url": "https://example.com/p" }
+            },
+            "fieldMapping": {
+                "song": { "id": "id", "title": "title" },
+                "album": { "id": "id", "name": "name" },
+                "artist": { "id": "id", "name": "name" },
+                "lyric": { "lines": [{ "timeMs": "t", "text": "x" }] }
+            }
+        });
+        let config = SoundSourceConfig::from_json(&config_json.to_string()).unwrap();
+        let err = JsonSource::new(config).err().expect("SSRF endpoint 应在导入期被拒绝");
+        assert!(err.to_string().contains("169.254.169.254"));
     }
 }

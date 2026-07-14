@@ -1,5 +1,5 @@
 // 职责：设置屏幕，核心版本、音源管理（LXMusic 风格列表 + 文件导入）、本地目录、缓存。
-// 对齐桌面端 pages/settings.js：调用 MusicCoreBridge 音源管理方法。
+// 对齐桌面端 pages/settings.js：调用 MusicRepository 音源管理方法。
 // 音源导入通过 ActivityResultContracts.GetContent 接收 application/json URI。
 
 package com.musicplayer.app.ui.screens
@@ -28,9 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import com.musicplayer.app.bridge.MusicCoreBridge
 import com.musicplayer.app.models.SourceInfo
 import com.musicplayer.app.player.PlayerManager
+import com.musicplayer.app.repository.MusicRepository
 import com.musicplayer.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,9 +56,9 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                 if (json.isNullOrBlank()) {
                     snackbarHostState.showSnackbar("无法读取文件或内容为空")
                 } else {
-                    runCatching { MusicCoreBridge.importSourceFromJson(json) }
+                    runCatching { MusicRepository.importSourceFromJson(json) }
                         .onSuccess { info ->
-                            sources = MusicCoreBridge.listSourcesOrdered()
+                            sources = MusicRepository.listSourcesOrdered()
                             snackbarHostState.showSnackbar("音源导入成功：${info.name}")
                         }
                         .onFailure {
@@ -70,8 +70,8 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
     }
 
     LaunchedEffect(Unit) {
-        version = MusicCoreBridge.appVersion()
-        sources = MusicCoreBridge.listSourcesOrdered()
+        version = MusicRepository.appVersion()
+        sources = MusicRepository.listSourcesOrdered()
     }
 
     Scaffold(
@@ -109,8 +109,8 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                 onImportClick = { pickJsonLauncher.launch("application/json") },
                 onToggleEnabled = { id, enabled ->
                     scope.launch {
-                        MusicCoreBridge.setSourceEnabled(id, enabled)
-                        sources = MusicCoreBridge.listSourcesOrdered()
+                        MusicRepository.setSourceEnabled(id, enabled)
+                        sources = MusicRepository.listSourcesOrdered()
                     }
                 },
                 onMoveUp = { index ->
@@ -118,8 +118,8 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                         val ordered = sources.toMutableList()
                         java.util.Collections.swap(ordered, index, index - 1)
                         scope.launch {
-                            MusicCoreBridge.reorderSources(ordered.map { it.id })
-                            sources = MusicCoreBridge.listSourcesOrdered()
+                            MusicRepository.reorderSources(ordered.map { it.id })
+                            sources = MusicRepository.listSourcesOrdered()
                         }
                     }
                 },
@@ -128,8 +128,8 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                         val ordered = sources.toMutableList()
                         java.util.Collections.swap(ordered, index, index + 1)
                         scope.launch {
-                            MusicCoreBridge.reorderSources(ordered.map { it.id })
-                            sources = MusicCoreBridge.listSourcesOrdered()
+                            MusicRepository.reorderSources(ordered.map { it.id })
+                            sources = MusicRepository.listSourcesOrdered()
                         }
                     }
                 },
@@ -159,8 +159,8 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                     val t = target
                     pendingDelete = null
                     scope.launch {
-                        MusicCoreBridge.deleteSource(t.id)
-                        sources = MusicCoreBridge.listSourcesOrdered()
+                        MusicRepository.deleteSource(t.id)
+                        sources = MusicRepository.listSourcesOrdered()
                         snackbarHostState.showSnackbar("已删除「${t.name}」")
                     }
                 }) { Text("删除", color = Danger) }

@@ -1,12 +1,14 @@
 // 职责：收藏页 ArkUI 组件，收藏分组卡片网格（豆包风格 ngh_* token）。
+// 对齐 core/src/models.rs::FavoriteGroup（id/name/song_ids）。
+// 占位实现：脚手架分组数据；接入核心后由 library 持久化加载。
 
-interface GroupItem { id: string; name: string; count: number }
+import { FavoriteGroup } from '../models/Models';
 
 @Component
 export struct FavoritesPage {
-  @State groups: Array<GroupItem> = [
-    { id: 'f1', name: '我的收藏', count: 3 },
-    { id: 'f2', name: '睡前音乐', count: 2 }
+  @State groups: Array<FavoriteGroup> = [
+    { id: 'f1', name: '我的收藏', song_ids: ['s1', 's2', 's3'] },
+    { id: 'f2', name: '睡前音乐', song_ids: ['s4', 's5'] }
   ];
   @State pressedId: string = '';
 
@@ -22,9 +24,9 @@ export struct FavoritesPage {
       } else {
         Scroll() {
           Grid() {
-            ForEach(this.groups, (g: GroupItem) => {
-              GridItem() { this.Card(g.id, g.name, `${g.count} 首`) }
-            }, (g: GroupItem) => g.id)
+            ForEach(this.groups, (g: FavoriteGroup) => {
+              GridItem() { this.Card(g.id, g.name, `${g.song_ids.length} 首`) }
+            }, (g: FavoriteGroup) => g.id)
           }
           .columnsTemplate('1fr 1fr')
           .columnsGap(12).rowsGap(12)

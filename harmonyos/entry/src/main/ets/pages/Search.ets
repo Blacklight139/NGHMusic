@@ -1,12 +1,17 @@
 // 职责：搜索页 ArkUI 组件，搜索栏 + 结果列表（卡片化，豆包风格 ngh_* token）。
 // 对齐桌面端 pages/search.js：调用 MusicCoreBridge.search。
+// 点击结果调用 playerManager.playSong 拉起播放。
 
-import { MusicCoreBridge, Song } from '../bridge/MusicCoreBridge';
+import { MusicCoreBridge } from '../bridge/MusicCoreBridge';
+import { Song } from '../models/Models';
+import { playerManager } from '../player/PlayerManager';
 
 @Component
 export struct SearchPage {
   @State keyword: string = '';
   @State pressedId: string = '';
+  @State loading: boolean = false;
+  @State total: number = 0;
   @State songs: Array<Song> = [
     {
       id: 's1', source_id: 'demo', title: '示例歌曲一', artists: ['艺术家A'],
@@ -41,6 +46,12 @@ export struct SearchPage {
       }
       .margin({ top: 16 })
 
+      if (this.total > 0) {
+        Text(`共 ${this.total} 条结果`).fontSize(11)
+          .fontColor($r('app.color.ngh_text_tertiary'))
+          .margin({ top: 8, bottom: 4 })
+      }
+
       Scroll() {
         Column() {
           if (this.songs.length === 0) {
@@ -52,7 +63,7 @@ export struct SearchPage {
           }
         }
       }
-      .layoutWeight(1).margin({ top: 16 })
+      .layoutWeight(1).margin({ top: 12 })
     }
     .width('100%').height('100%').padding(16)
     .backgroundColor($r('app.color.ngh_background'))
@@ -69,7 +80,7 @@ export struct SearchPage {
         Text(song.artists.join(' / ')).fontSize(11).fontColor($r('app.color.ngh_text_secondary'))
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
       }.layoutWeight(1).margin({ left: 8 })
-      Text('在线').fontSize(11).fontColor($r('app.color.ngh_text_secondary'))
+      Text(this.originLabel(song)).fontSize(11).fontColor($r('app.color.ngh_text_secondary'))
         .padding({ left: 8, right: 8, top: 2, bottom: 2 })
         .backgroundColor($r('app.color.ngh_surface_alt'))
         .borderRadius(999)
@@ -80,6 +91,7 @@ export struct SearchPage {
     .border({ width: 1, color: $r('app.color.ngh_border') })
     .shadow({ radius: 8, color: '#14000000', offsetX: 0, offsetY: 2 })
     .margin({ bottom: 12 })
+    .onClick(() => this.playSong(song))
     .onTouch((event: TouchEvent) => {
       if (event.type === TouchType.Down) {
         this.pressedId = song.id;
@@ -113,9 +125,31 @@ export struct SearchPage {
     if (this.keyword.length === 0) {
       return;
     }
+    this.loading = true;
     const result = MusicCoreBridge.search(this.keyword, 1, 20);
-    if (result && result.songs.length > 0) {
+    this.loading = false;
+    if (result) {
       this.songs = result.songs;
+      this.total = result.total;
+    }
+  }
+
+  private playSong(song: Song): void {
+    // 将 Song 模型（snake_case play_url）映射为 PlayerManager QueueItem（camelCase playUrl）
+    playerManager.playSong({
+      id: song.id,
+      title: song.title,
+      artist: song.artists.join(' / '),
+      playUrl: song.play_url ?? '',
+    });
+  }
+
+  private originLabel(song: Song): string {
+    switch (song.origin.type) {
+      case 'Online': return '在线';
+      case 'Local': return '本地';
+      case 'Nas': return 'NAS';
+      default: return '未知';
     }
   }
 }

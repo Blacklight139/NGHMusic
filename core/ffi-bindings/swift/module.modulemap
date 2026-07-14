@@ -1,0 +1,14 @@
+// module.modulemap
+// 声明 MusicCore 模块并链接 music_core cdylib（C ABI 实现于 core/src/ffi.rs）。
+//
+// 集成方式（Xcode）：
+// 1. 将 libmusic_core.dylib / libmusic_core.a 放入 Library Search Paths。
+// 2. 将本 modulemap 所在目录加入 Other Swift Flags 的 -I 路径。
+// 3. Swift 侧 `import MusicCore` 后调用 MusicCore.* 安全包装。
+//
+// 说明：C ABI 符号在 MusicCore.swift 内通过 @_silgen_name 直接引用，
+//       无需额外 C 头文件；本 modulemap 负责 module 与链接声明。
+module MusicCore {
+    link "music_core"
+    export *
+}

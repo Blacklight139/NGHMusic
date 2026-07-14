@@ -1,6 +1,6 @@
 // MARK: - SettingsView
 // 职责：设置页。LXMusic 风格音源管理（列表 / 排序 / 开关 / 删除 / 文件导入）+ 核心版本 + 本地目录 + 缓存占位。
-// 音源管理通过 MusicCore.listSourcesOrdered / reorderSources / setSourceEnabled /
+// 音源管理通过 MusicCoreBridge.listSourcesOrdered / reorderSources / setSourceEnabled /
 // deleteSource / importSourceFromJson 调用核心 SourceManager。
 // 文件导入使用 SwiftUI 原生 .fileImporter（iOS 14+，无需 Info.plist 配置 UIDocumentPickerSupport）。
 
@@ -247,12 +247,12 @@ struct SettingsView: View {
     // MARK: - 数据操作
 
     private func loadVersion() {
-        appVersion = MusicCore.appVersion()
+        appVersion = MusicCoreBridge.appVersion()
     }
 
     private func loadSources() async {
         do {
-            sources = try await MusicCore.listSourcesOrdered()
+            sources = try await MusicCoreBridge.listSourcesOrdered()
         } catch {
             sources = []
         }
@@ -272,7 +272,7 @@ struct SettingsView: View {
         let orderedIds = sources.map { $0.id }
         Task {
             do {
-                try await MusicCore.reorderSources(orderedIds: orderedIds)
+                try await MusicCoreBridge.reorderSources(orderedIds: orderedIds)
             } catch {
                 importErrorMessage = "排序失败：\(error.localizedDescription)"
                 await loadSources()
@@ -286,7 +286,7 @@ struct SettingsView: View {
         let orderedIds = sources.map { $0.id }
         Task {
             do {
-                try await MusicCore.reorderSources(orderedIds: orderedIds)
+                try await MusicCoreBridge.reorderSources(orderedIds: orderedIds)
             } catch {
                 importErrorMessage = "排序失败：\(error.localizedDescription)"
                 await loadSources()
@@ -300,7 +300,7 @@ struct SettingsView: View {
         sources[idx].enabled = enabled
         Task {
             do {
-                try await MusicCore.setSourceEnabled(id: source.id, enabled: enabled)
+                try await MusicCoreBridge.setSourceEnabled(id: source.id, enabled: enabled)
             } catch {
                 if let idx = sources.firstIndex(where: { $0.id == source.id }) {
                     sources[idx].enabled = !enabled
@@ -314,7 +314,7 @@ struct SettingsView: View {
     private func performDelete(_ source: SourceInfo) {
         Task {
             do {
-                try await MusicCore.deleteSource(id: source.id)
+                try await MusicCoreBridge.deleteSource(id: source.id)
                 sources.removeAll { $0.id == source.id }
             } catch {
                 importErrorMessage = "删除失败：\(error.localizedDescription)"
@@ -335,7 +335,7 @@ struct SettingsView: View {
                     importErrorMessage = "文件内容为空或非 UTF-8 文本"
                     return
                 }
-                _ = try await MusicCore.importSourceFromJson(jsonStr)
+                _ = try await MusicCoreBridge.importSourceFromJson(jsonStr)
                 await loadSources()
             } catch {
                 importErrorMessage = "导入失败：\(error.localizedDescription)"

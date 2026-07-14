@@ -1,0 +1,64 @@
+# SwiftLint 配置（macOS / MusicPlayerApp）。
+# 文档：https://github.com/realm/SwiftLint
+# 适配自 ios/.swiftlint.yml，规则保持一致。
+
+included:
+  - .
+
+excluded:
+  - .build
+  - .swiftpm
+
+# 默认 opt-in 规则按需开启，避免对 Swift 编译器警告造成双倍告警。
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - first_where
+  - last_where
+  - operator_usage_whitespace
+  - sorted_first_last
+  - toggle_bool
+  - yoda_condition
+  - implicitly_unwrapped_optionals
+
+# 关闭若干对 SwiftUI / 跨平台桥接不友好的规则
+disabled_rules:
+  - trailing_whitespace
+  - todo  # 项目正在迁移，TODO 由任务清单统一管理
+  - file_length  # 桥接文件可能较长
+
+# 强制错误而非警告的关键规则
+force_unwrapping:
+  severity: error
+
+force_cast:
+  severity: warning
+
+force_try:
+  severity: error
+
+implicitly_unwrapped_optionals:
+  severity: error
+
+line_length:
+  warning: 200
+  error: 250
+
+function_body_length:
+  warning: 60
+  error: 120
+
+type_body_length:
+  warning: 400
+  error: 800
+
+file_length:
+  warning: 600
+  error: 1200
+
+identifier_name:
+  min_length: 1
+  max_length: 60
+  allowed_symbols: ["_"]
+
+reporter: "xcode"

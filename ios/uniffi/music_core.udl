@@ -69,16 +69,22 @@ dictionary Song {
 
 [Error]
 enum CoreError {
-    "SourceError";
-    "NotFound";
-    "InvalidInput";
     "Io";
+    "Json";
+    "Http";
+    "Source";
+    "Schema";
+    "NotFound";
+    "Cache";
+    "Protocol";
+    "Feiniu";
+    "Ffi";
 };
 
 enum SongOrigin {
     Online { string source_id; string play_url; };
     Local { string path; };
-    Nas { string protocol_name; string url; };
+    Nas { string protocol; string url; };
 };
 
 dictionary Album {
@@ -119,7 +125,7 @@ dictionary Leaderboard {
     string source_id;
     string name;
     optional<string> cover_url;
-    sequence<string> song_ids;
+    sequence<Song> songs;
 };
 
 // 音源信息（对应 Rust SourceInfo：id/name/version/enabled/source_type/priority/description）

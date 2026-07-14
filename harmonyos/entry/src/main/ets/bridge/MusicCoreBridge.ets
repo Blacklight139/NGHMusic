@@ -1,5 +1,6 @@
 // 职责：HarmonyOS 通过 NAPI（napi-rs）调用 music-core（Rust）的 ArkTS 桥接层。
-// 封装：appVersion/importSource/search/listLocalSongs/play。
+// 封装：appVersion/importSource/search/listLocalSongs/play/getMetadata/getPlayUrl/getLyric/
+//       getLeaderboards/feiniu*/protocol*/local*/cache*/sourceValidate。
 //
 // FFI 方案：NAPI（Node-API）/ napi-rs。
 // 启用步骤（需在 core 增加 napi-rs 依赖并构建 NAPI 产物）：
@@ -32,41 +33,22 @@
 //
 // 说明：本桥接假设 NAPI 模块名为 libmusiccore.so，导出函数 appVersion 等。
 //       若 .so 未链接，调用降级为占位实现（返回空/默认值），保证脚手架可编译。
+//
+// 数据类型：统一从 ../models/Models.ets 复用，与 core/src/models.rs 严格对齐（snake_case 字段名）。
+// 修复 HAR-003：SongOrigin 的 Nas 变体使用 `protocol` 字段（NOT `protocol_name`），见 Models.ets。
 
-// 数据类型（与 core/src/models.rs 对齐）
-export interface Song {
-  id: string;
-  source_id: string;
-  title: string;
-  artists: string[];
-  album?: string;
-  cover_url?: string;
-  duration_ms?: number;
-  lyric_url?: string;
-  play_url?: string;
-  local_path?: string;
-  origin: SongOrigin;
-}
+export {
+  Song, SongOrigin, Album, Artist, Lyric, LyricLine,
+  SearchResult, Leaderboard, Playlist, FavoriteGroup,
+  PlayMode, PlayState, NasFile,
+  playModeToSnakeString, playModeFromSnakeString,
+} from '../models/Models';
 
-export type SongOrigin =
-  | { type: 'Online'; source_id: string; play_url: string }
-  | { type: 'Local'; path: string }
-  | { type: 'Nas'; protocol_name: string; url: string };
+import type { Song, SearchResult } from '../models/Models';
 
-export interface SearchResult {
-  keyword: string;
-  songs: Song[];
-  albums: Album[];
-  artists: Artist[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-export interface Album { id: string; source_id: string; name: string; artists: string[]; cover_url?: string; song_ids: string[]; }
-export interface Artist { id: string; source_id: string; name: string; avatar_url?: string; song_ids: string[]; }
-
-// 音源信息（与 core SourceManager SourceInfo 对齐：id/name/version/enabled/sourceType/priority/description）
+// 音源信息（UI 辅助结构：sourceType 为 camelCase 显示字段，与 core SourceManager SourceInfo 对齐：
+// id/name/version/enabled/sourceType/priority/description）。该结构仅用于音源管理 UI 展示，
+// 不直接来自 Rust 模型序列化，故保留 camelCase 命名以与 ArkTS 习惯一致。
 export interface SourceInfo {
   id: string;
   name: string;
@@ -199,6 +181,200 @@ export class MusicCoreBridge {
   static play(songId: string): string | null {
     if (NAPI_ENABLED) {
       // return musicCore.play(songId);
+    }
+    return null;
+  }
+
+  // ---- 音源校验 ----
+
+  /** 校验音源 JSON 是否符合标准 Schema，返回 {"valid":bool,"errors":[...]} JSON。 */
+  static sourceValidate(json: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.sourceValidate(json);
+    }
+    return null;
+  }
+
+  // ---- 歌曲元数据/歌词/排行榜 ----
+  // 实际启用后均替换为 musicCore.* 调用，返回核心序列化的 JSON 字符串。
+
+  /** 获取指定音源下歌曲的完整元数据，返回 Song JSON。 */
+  static getMetadata(sourceId: string, songId: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.getMetadata(sourceId, songId);
+    }
+    return null;
+  }
+
+  /** 获取指定音源下歌曲的可播放 URL，返回 {"url":...,"cached":false}。 */
+  static getPlayUrl(sourceId: string, songId: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.getPlayUrl(sourceId, songId);
+    }
+    return null;
+  }
+
+  /** 获取指定音源下歌曲的歌词，返回 Lyric JSON。 */
+  static getLyric(sourceId: string, songId: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.getLyric(sourceId, songId);
+    }
+    return null;
+  }
+
+  /** 获取指定音源的排行榜列表，返回 Leaderboard 数组 JSON。 */
+  static getLeaderboards(sourceId: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.getLeaderboards(sourceId);
+    }
+    return null;
+  }
+
+  // ---- 飞牛 NAS ----
+  // 实际启用后替换为 musicCore.feiniu* 调用，返回核心 JSON。
+
+  /** 登录飞牛 NAS，返回 {"token":...,"base_url":...}。 */
+  static feiniuLogin(baseUrl: string, username: string, password: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.feiniuLogin(baseUrl, username, password);
+    }
+    return null;
+  }
+
+  /** 列出飞牛 NAS 指定路径下的文件，返回 {"path":...,"files":[...]}。 */
+  static feiniuListFiles(path: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.feiniuListFiles(path);
+    }
+    return null;
+  }
+
+  /** 生成飞牛 NAS 文件的可流式播放 URL，返回 {"url":...}。 */
+  static feiniuStream(path: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.feiniuStream(path);
+    }
+    return null;
+  }
+
+  /** 飞牛服务健康检查，返回 {"healthy":bool,"base_url":...}。 */
+  static feiniuHealth(): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.feiniuHealth();
+    }
+    return null;
+  }
+
+  // ---- 协议源（SMB/WebDAV/FTP/DLNA/NFS）----
+  // 实际启用后替换为 musicCore.protocol* 调用，返回核心 JSON。
+  // WebDAV/FTP 完整实现，SMB/DLNA/NFS 为占位实现（调用返回 Protocol 错误）。
+
+  /** 添加一个远程协议源，返回 {"id":...,"protocol":...,"root":...,"enabled":true,"placeholder":bool}。 */
+  static protocolAdd(configJson: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.protocolAdd(configJson);
+    }
+    return null;
+  }
+
+  /** 列出已加载的协议源，返回 {"sources":[...]}。 */
+  static protocolList(): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.protocolList();
+    }
+    return null;
+  }
+
+  /** 删除指定 id 的协议源，返回 {"id":...,"deleted":bool}。 */
+  static protocolDelete(id: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.protocolDelete(id);
+    }
+    return null;
+  }
+
+  /** 列出协议源下指定路径的条目名称，返回 {"path":...,"entries":[...]}。 */
+  static protocolListFiles(id: string, path: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.protocolListFiles(id, path);
+    }
+    return null;
+  }
+
+  /** 读取协议源下指定文件为字节，返回 {"size":N,"data_base64":"..."}。 */
+  static protocolRead(id: string, path: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.protocolRead(id, path);
+    }
+    return null;
+  }
+
+  /** 生成协议源下指定文件的可流式播放 URL，返回 {"url":...}。 */
+  static protocolStream(id: string, path: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.protocolStream(id, path);
+    }
+    return null;
+  }
+
+  // ---- 本地音乐管理 ----
+  // 实际启用后替换为 musicCore.local* 调用，返回核心 JSON。
+
+  /** 初始化本地音乐源（打开/创建 SQLite 索引库），返回 {"ok":true}。 */
+  static localInit(dbPath: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.localInit(dbPath);
+    }
+    return null;
+  }
+
+  /** 添加本地扫描目录并递归扫描入库，返回 {"ok":true}。 */
+  static localAddDir(dir: string): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.localAddDir(dir);
+    }
+    return null;
+  }
+
+  /** 重新扫描所有已添加目录（增量更新），返回 {"ok":true}。 */
+  static localRescan(): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.localRescan();
+    }
+    return null;
+  }
+
+  /** 返回本地扫描进度，返回 {"current_count":N,"scanning":bool}。 */
+  static localProgress(): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.localProgress();
+    }
+    return null;
+  }
+
+  // ---- 缓存 ----
+  // 实际启用后替换为 musicCore.cache* 调用，返回核心 JSON。
+
+  /** 初始化播放缓存管理器，返回 {"ok":true}。 */
+  static cacheInit(cacheDir: string, maxBytes: number): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.cacheInit(cacheDir, maxBytes);
+    }
+    return null;
+  }
+
+  /** 返回缓存统计，返回 {"entries":N,"total_bytes":N,"max_bytes":N}。 */
+  static cacheStats(): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.cacheStats();
+    }
+    return null;
+  }
+
+  /** 清空所有缓存文件与索引，返回 {"ok":true}。 */
+  static cacheClear(): string | null {
+    if (NAPI_ENABLED) {
+      // return musicCore.cacheClear();
     }
     return null;
   }

@@ -25,6 +25,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 async-trait = "0.1"
 jsonschema = "0.22"
 suppaftp = "6"
+base64 = "0.22"
 
 [dev-dependencies]
 tokio-test = "0.4"
