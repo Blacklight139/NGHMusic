@@ -1,0 +1,265 @@
+/* NGHMusic Linux - 豆包风格 CSS 主题 */
+/* 与 macOS AppTheme.swift 设计 Token 对齐 */
+
+/* 主色 */
+@define-color ngh_primary #4E6EF2;
+@define-color ngh_primary_hover #3D5AE0;
+@define-color ngh_primary_soft rgba(78, 110, 242, 0.08);
+
+/* 背景 / 表面 */
+@define-color ngh_background #F7F8FA;
+@define-color ngh_surface #FFFFFF;
+@define-color ngh_surface_alt #F0F2F5;
+@define-color ngh_sidebar_bg #FFFFFF;
+
+/* 文本 */
+@define-color ngh_text #1F1F1F;
+@define-color ngh_text_primary #1F1F1F;
+@define-color ngh_text_secondary #6B6B6B;
+@define-color ngh_text_tertiary #999999;
+
+/* 边框 */
+@define-color ngh_border #EDEEF0;
+@define-color ngh_border_soft #F5F6F8;
+
+/* 语义色 */
+@define-color ngh_danger #F5483B;
+@define-color ngh_success #00B96B;
+@define-color ngh_warning #FA8C16;
+
+/* 主窗口背景 */
+window.background {
+  background-color: @ngh_background;
+}
+
+/* 侧边栏 */
+.ngh-sidebar {
+  background-color: @ngh_sidebar_bg;
+  border-right: 1px solid @ngh_border;
+}
+
+.ngh-brand-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: @ngh_text;
+}
+
+.ngh-sidebar-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: @ngh_text_secondary;
+  transition: all 0.15s ease;
+}
+
+.ngh-sidebar-item:hover {
+  background-color: @ngh_surface_alt;
+}
+
+.ngh-sidebar-item.active {
+  background-color: @ngh_primary_soft;
+  color: @ngh_primary;
+  font-weight: 600;
+}
+
+/* 页面标题 */
+.ngh-page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: @ngh_text;
+}
+
+/* 歌曲行 */
+.ngh-song-row {
+  padding: 8px 12px;
+  border-bottom: 1px solid @ngh_border_soft;
+  transition: background-color 0.15s ease;
+}
+
+.ngh-song-row:hover {
+  background-color: @ngh_surface_alt;
+}
+
+.ngh-song-row.playing .ngh-song-title {
+  color: @ngh_primary;
+  font-weight: 600;
+}
+
+.ngh-song-title {
+  font-size: 14px;
+  color: @ngh_text;
+  font-weight: 500;
+}
+
+.ngh-song-artist {
+  font-size: 12px;
+  color: @ngh_text_secondary;
+}
+
+.ngh-song-duration {
+  font-size: 12px;
+  color: @ngh_text_tertiary;
+}
+
+.ngh-song-index {
+  font-size: 13px;
+  color: @ngh_text_tertiary;
+  min-width: 28px;
+}
+
+/* 封面占位 */
+.ngh-cover-placeholder {
+  background-color: @ngh_primary_soft;
+  border-radius: 6px;
+  color: @ngh_primary;
+}
+
+/* 来源标签 */
+.ngh-source-tag {
+  background-color: @ngh_primary_soft;
+  color: @ngh_primary;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+/* 搜索框 */
+.ngh-search-entry {
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+/* 主按钮 */
+.ngh-primary-button {
+  background-color: @ngh_primary;
+  color: white;
+  border-radius: 10px;
+  padding: 8px 20px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.ngh-primary-button:hover {
+  background-color: @ngh_primary_hover;
+}
+
+.ngh-primary-button:active {
+  transform: scale(0.97);
+}
+
+/* 幽灵按钮 */
+.ngh-ghost-button {
+  background-color: transparent;
+  color: @ngh_text_secondary;
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: all 0.15s ease;
+}
+
+.ngh-ghost-button:hover {
+  background-color: @ngh_surface_alt;
+  color: @ngh_text;
+}
+
+/* 播放控制栏 */
+.ngh-playback-bar {
+  background-color: @ngh_surface;
+  border-top: 1px solid @ngh_border;
+  padding: 10px 16px;
+}
+
+.ngh-playback-bar .ngh-song-title {
+  font-size: 13px;
+}
+
+.ngh-playback-bar .ngh-song-artist {
+  font-size: 11px;
+}
+
+/* 进度条 */
+.ngh-progress-bar trough {
+  background-color: @ngh_border;
+  border-radius: 999px;
+  min-height: 4px;
+}
+
+.ngh-progress-bar highlight {
+  background-color: @ngh_primary;
+  border-radius: 999px;
+}
+
+/* 音量滑块 */
+scale.ngh-volume trough {
+  background-color: @ngh_border;
+  border-radius: 999px;
+  min-height: 4px;
+}
+
+scale.ngh-volume highlight {
+  background-color: @ngh_primary;
+  border-radius: 999px;
+}
+
+/* 空状态 */
+.ngh-empty-state {
+  color: @ngh_text_tertiary;
+  font-size: 14px;
+}
+
+/* 加载状态 */
+.ngh-loading {
+  color: @ngh_text_secondary;
+  font-size: 14px;
+}
+
+/* 卡片容器 */
+.ngh-card {
+  background-color: @ngh_surface;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+/* 分割线 */
+.ngh-divider {
+  background-color: @ngh_border_soft;
+  min-height: 1px;
+}
+
+/* 开关 */
+switch {
+  border-radius: 999px;
+}
+
+switch:checked slider {
+  background-color: white;
+}
+
+switch:checked {
+  background-color: @ngh_primary;
+}
+
+/* 列表 */
+list.ngh-list {
+  background-color: transparent;
+}
+
+list.ngh-list > row {
+  background-color: transparent;
+}
+
+/* 输入框 */
+entry.ngh-input {
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+/* 标签 */
+.ngh-label-secondary {
+  color: @ngh_text_secondary;
+  font-size: 13px;
+}
+
+.ngh-label-primary {
+  color: @ngh_text;
+  font-size: 14px;
+  font-weight: 500;
+}
