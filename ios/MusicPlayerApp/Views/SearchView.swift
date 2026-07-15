@@ -13,6 +13,8 @@ struct SearchView: View {
     @State private var loading = false
     @State private var errorMessage: String?
     @State private var hasSearched = false
+    // IOS-013 修复：保存搜索 Task 句柄，发起新搜索前取消旧任务，避免旧结果覆盖新结果。
+    @State private var searchTask: Task<Void, Never>?
 
     /// 占位歌曲（未链接核心库 / 搜索失败时展示，便于 UI 验证）。
     /// playUrl 为 nil → IOS-001 保护下点击不会进入播放状态。
@@ -58,19 +60,25 @@ struct SearchView: View {
 
     private func performSearch() {
         guard !keyword.isEmpty else { return }
+        // IOS-013 修复：取消上一次未完成的搜索，防止旧结果晚于新结果返回时覆盖。
+        searchTask?.cancel()
         loading = true
         errorMessage = nil
         hasSearched = true
-        Task {
+        searchTask = Task {
             do {
                 let result = try await MusicCoreBridge.search(keyword, page: 1, pageSize: 20)
+                if Task.isCancelled { return }
                 songs = result.songs
             } catch {
+                if Task.isCancelled { return }
                 // 脚手架阶段 music-core 未链接时降级到占位数据
                 errorMessage = "（占位）\(error.localizedDescription)"
                 songs = placeholderSongs
             }
-            loading = false
+            if !Task.isCancelled {
+                loading = false
+            }
         }
     }
 }

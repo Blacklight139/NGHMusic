@@ -380,11 +380,19 @@ public sealed class PlayerService : IDisposable
         if (_mode == PlayMode.SingleLoop && _currentIndex >= 0)
         {
             _ = PlayCurrentAsync();
+            return;
         }
-        else
+
+        // 顺序模式：播放到队列末尾时停止，不自动回绕到第一首。
+        // Next() 使用取模回绕（% _queue.Count），若在末尾继续推进会从头重放，
+        // 每首结束又触发 MediaEnded，从而形成无限循环重放整个队列。
+        if (_mode == PlayMode.Sequential && _currentIndex >= _queue.Count - 1)
         {
-            Next();
+            // 保留队列与索引，播放器自然停在末尾，用户可手动续播，避免 MediaEnded 反复触发。
+            return;
         }
+
+        Next();
     }
 
     private void OnMediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)

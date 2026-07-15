@@ -21,6 +21,7 @@ use music_core::sources::SourceInfo;
 use crate::core_service::CoreService;
 use crate::player_service::PlayerService;
 use crate::theme;
+use crate::utils::{format_artists, format_duration};
 
 /// 排行榜页内部状态。
 struct LeaderboardState {
@@ -297,9 +298,10 @@ fn create_leaderboard_row(
         row_box.append(&divider);
 
         let songs_box = Box::new(Orientation::Vertical, 0);
-        let songs = board.songs.clone();
+        // 使用 Arc<Vec<Song>> 共享引用，避免每行 clone 整个 Vec 导致 O(n²) 内存开销。
+        let songs: Arc<Vec<Song>> = Arc::new(board.songs.clone());
         for (song_idx, song) in board.songs.iter().enumerate() {
-            let song_row = create_song_row(song, song_idx, songs.clone(), player);
+            let song_row = create_song_row(song, song_idx, Arc::clone(&songs), player);
             songs_box.append(&song_row);
         }
         row_box.append(&songs_box);
@@ -318,7 +320,7 @@ fn create_leaderboard_row(
 fn create_song_row(
     song: &Song,
     index: usize,
-    songs: Vec<Song>,
+    songs: Arc<Vec<Song>>,
     player: &Arc<PlayerService>,
 ) -> Widget {
     let row_box = Box::new(Orientation::Horizontal, theme::SPACING_S3);
@@ -371,28 +373,10 @@ fn create_song_row(
     {
         let player = Arc::clone(player);
         click.connect_released(move |_, _, _, _| {
-            player.load_queue(songs.clone(), index);
+            player.load_queue((*songs).clone(), index);
         });
     }
     row_box.add_controller(click);
 
     row_box.upcast::<Widget>()
-}
-
-/// 格式化艺术家列表为「A / B / C」形式。
-fn format_artists(artists: &[String]) -> String {
-    artists.join(" / ")
-}
-
-/// 将毫秒时长格式化为 `mm:ss`。
-fn format_duration(duration_ms: Option<u64>) -> String {
-    match duration_ms {
-        Some(ms) => {
-            let total_secs = ms / 1000;
-            let mins = total_secs / 60;
-            let secs = total_secs % 60;
-            format!("{mins:02}:{secs:02}")
-        }
-        None => "--:--".to_string(),
-    }
 }

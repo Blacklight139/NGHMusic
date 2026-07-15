@@ -62,7 +62,7 @@ fun PlaylistScreen(player: PlayerManager = viewModel()) {
             EmptyState("播放列表为空", "去搜索添加歌曲吧", icon = Icons.Filled.QueueMusic)
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                itemsIndexed(songs) { i, song ->
+                itemsIndexed(songs, key = { _, item -> item.id }) { i, song ->
                     SongRowItem(
                         index = i + 1,
                         song = song,

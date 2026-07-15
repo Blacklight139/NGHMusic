@@ -55,7 +55,9 @@ struct FfiState {
     feiniu: Mutex<FeiniuClient>,
     protocols: Mutex<HashMap<String, ProtocolEntry>>,
     protocol_seq: Mutex<u64>,
-    local: Mutex<Option<LocalSource>>,
+    // 使用 Arc<LocalSource>：扫描时仅在锁内 clone Arc，释放锁后扫描，
+    // 使 music_core_local_progress 能并发查询进度而不被长时间阻塞。
+    local: Mutex<Option<Arc<LocalSource>>>,
     cache: Mutex<Option<CacheManager>>,
 }
 
@@ -388,20 +390,34 @@ pub unsafe extern "C" fn music_core_search(
     };
 
     let result: Result<SearchResult> = block_on(st, async move {
+        // 使用 JoinSet 并发查询所有启用音源，避免顺序 await 拉长尾延迟。
+        // 每个任务携带 source 的 Arc 克隆与 kw 克隆，确保 'static + Send。
+        let mut join_set = tokio::task::JoinSet::new();
+        for source in sources {
+            let kw_clone = kw.clone();
+            join_set.spawn(async move {
+                let id = source.id().to_string();
+                let result = source.search(&kw_clone, page, page_size).await;
+                (id, result)
+            });
+        }
         let mut songs = Vec::new();
         let mut albums = Vec::new();
         let mut artists = Vec::new();
         let mut total: u64 = 0;
-        for source in &sources {
-            match source.search(&kw, page, page_size).await {
-                Ok(r) => {
+        while let Some(joined) = join_set.join_next().await {
+            match joined {
+                Ok((_id, Ok(r))) => {
                     songs.extend(r.songs);
                     albums.extend(r.albums);
                     artists.extend(r.artists);
                     total = total.saturating_add(r.total);
                 }
-                Err(e) => {
-                    log::warn!("音源 {} 搜索失败，已跳过: {}", source.id(), e);
+                Ok((id, Err(e))) => {
+                    log::warn!("音源 {} 搜索失败，已跳过: {}", id, e);
+                }
+                Err(join_err) => {
+                    log::warn!("搜索任务 join 异常: {}", join_err);
                 }
             }
         }
@@ -478,11 +494,35 @@ pub unsafe extern "C" fn music_core_get_play_url(
             None => return error_ptr("NotFound", &format!("音源不存在: {sid}")),
         }
     };
-    let result: Result<String> = block_on(st, async move { source.get_play_url(&songid).await });
-    match result {
-        Ok(url) => to_json_ptr(&serde_json::json!({ "url": url, "cached": false, "play_url": url })),
-        Err(e) => error_ptr(error_kind(&e), &e.to_string()),
-    }
+    // 集成 CacheManager：若该 song_id 的播放数据已缓存，返回本地缓存路径并将
+    // cached=true；否则在线获取 URL（cached=false）。先做缓存检查，避免无谓
+    // 的网络请求；同时避免 songid 在 async move 后被借用的问题。
+    let cached_path: Option<String> = {
+        let cache_guard = match st.cache.lock() {
+            Ok(g) => g,
+            Err(_) => return error_ptr("Ffi", "缓存管理器锁获取失败"),
+        };
+        cache_guard
+            .as_ref()
+            .and_then(|c| c.get_path(&songid))
+            .map(|p| p.to_string_lossy().to_string())
+    };
+    let (final_url, cached): (String, bool) = match cached_path {
+        Some(p) => (p, true),
+        None => {
+            let result: Result<String> =
+                block_on(st, async move { source.get_play_url(&songid).await });
+            match result {
+                Ok(u) => (u, false),
+                Err(e) => return error_ptr(error_kind(&e), &e.to_string()),
+            }
+        }
+    };
+    to_json_ptr(&serde_json::json!({
+        "url": final_url,
+        "cached": cached,
+        "play_url": final_url,
+    }))
 }
 
 /// 获取指定音源下歌曲的歌词，返回 `Lyric` JSON。
@@ -585,9 +625,11 @@ pub unsafe extern "C" fn music_core_feiniu_login(
         return error_ptr(error_kind(&e), &e.to_string());
     }
     let token = client.token.clone().unwrap_or_default();
-    // 写回全局状态
-    if let Ok(mut g) = st.feiniu.lock() {
-        *g = client;
+    // 写回全局状态：锁中毒时返回错误而非静默吞错（旧实现即使锁失败仍返回成功，
+    // 导致调用方误以为登录完成，但全局状态未更新）。
+    match st.feiniu.lock() {
+        Ok(mut g) => *g = client,
+        Err(_) => return error_ptr("Ffi", "飞牛客户端锁中毒，登录结果未能写入全局状态"),
     }
     to_json_ptr(&serde_json::json!({ "token": token, "base_url": base }))
 }
@@ -738,10 +780,18 @@ pub unsafe extern "C" fn music_core_protocol_add(config_json: *const c_char) -> 
                 Some(h) => h,
                 None => return error_ptr("Protocol", "FTP 缺少 host 字段"),
             };
-            let port = value
+            let port_raw = value
                 .get("port")
                 .and_then(|v| v.as_u64())
-                .unwrap_or(21) as u16;
+                .unwrap_or(21);
+            // 校验端口范围，避免 `as u16` 静默截断导致连接到错误端口
+            if port_raw > 65535 {
+                return error_ptr(
+                    "Protocol",
+                    &format!("FTP 端口超出有效范围 (0-65535): {}", port_raw),
+                );
+            }
+            let port = port_raw as u16;
             let username = opt_str("username").unwrap_or_default();
             let password = opt_str("password").unwrap_or_default();
             Arc::new(FtpClient::new(host, port, username, password))
@@ -783,7 +833,8 @@ pub unsafe extern "C" fn music_core_protocol_add(config_json: *const c_char) -> 
             Err(_) => return error_ptr("Ffi", "协议源序号锁获取失败"),
         };
         let n = *seq;
-        *seq = n + 1;
+        // 使用 wrapping_add 避免 debug 模式下溢出 panic（u64 极难触发，但 FFI 边界不应 panic）
+        *seq = n.wrapping_add(1);
         format!("proto-{n}")
     };
     {
@@ -991,7 +1042,7 @@ pub unsafe extern "C" fn music_core_local_init(db_path: *const c_char) -> *mut c
     };
     match st.local.lock() {
         Ok(mut g) => {
-            *g = Some(local);
+            *g = Some(Arc::new(local));
             to_json_ptr(&serde_json::json!({ "ok": true }))
         }
         Err(_) => error_ptr("Ffi", "本地音源锁获取失败"),
@@ -1012,13 +1063,19 @@ pub unsafe extern "C" fn music_core_local_add_dir(dir: *const c_char) -> *mut c_
         Some(s) => s,
         None => return error_ptr("Ffi", "核心运行时未初始化"),
     };
-    let local = match st.local.lock() {
-        Ok(g) => g,
-        Err(_) => return error_ptr("Ffi", "本地音源锁获取失败"),
-    };
-    let local = match local.as_ref() {
-        Some(l) => l,
-        None => return error_ptr("Ffi", "本地音源未初始化，请先调用 music_core_local_init"),
+    // 仅在锁内 clone Arc，立即释放锁，扫描在锁外执行。
+    // 这样 music_core_local_progress 可并发查询进度，不被长时间扫描阻塞。
+    let local: Arc<LocalSource> = {
+        let g = match st.local.lock() {
+            Ok(g) => g,
+            Err(_) => return error_ptr("Ffi", "本地音源锁获取失败"),
+        };
+        match g.as_ref() {
+            Some(l) => Arc::clone(l),
+            None => {
+                return error_ptr("Ffi", "本地音源未初始化，请先调用 music_core_local_init")
+            }
+        }
     };
     match local.add_directory(&d) {
         Ok(()) => to_json_ptr(&serde_json::json!({ "ok": true })),
@@ -1033,13 +1090,18 @@ pub extern "C" fn music_core_local_rescan() -> *mut c_char {
         Some(s) => s,
         None => return error_ptr("Ffi", "核心运行时未初始化"),
     };
-    let local = match st.local.lock() {
-        Ok(g) => g,
-        Err(_) => return error_ptr("Ffi", "本地音源锁获取失败"),
-    };
-    let local = match local.as_ref() {
-        Some(l) => l,
-        None => return error_ptr("Ffi", "本地音源未初始化，请先调用 music_core_local_init"),
+    // 仅在锁内 clone Arc，立即释放锁，扫描在锁外执行（与 add_dir 同因）。
+    let local: Arc<LocalSource> = {
+        let g = match st.local.lock() {
+            Ok(g) => g,
+            Err(_) => return error_ptr("Ffi", "本地音源锁获取失败"),
+        };
+        match g.as_ref() {
+            Some(l) => Arc::clone(l),
+            None => {
+                return error_ptr("Ffi", "本地音源未初始化，请先调用 music_core_local_init")
+            }
+        }
     };
     match local.rescan() {
         Ok(()) => to_json_ptr(&serde_json::json!({ "ok": true })),

@@ -10,7 +10,7 @@ package com.musicplayer.app.repository
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.google.gson.JsonSyntaxException
+import com.google.gson.JsonParser
 import com.google.gson.TypeAdapter
 import com.google.gson.TypeAdapterFactory
 import com.google.gson.reflect.TypeToken
@@ -89,7 +89,9 @@ object MusicRepository {
                 "Online" -> SongOrigin.Online(onlineSourceId ?: "", onlinePlayUrl ?: "")
                 "Local" -> SongOrigin.Local(localPath ?: "")
                 "Nas" -> SongOrigin.Nas(nasProtocol ?: "", nasUrl ?: "")
-                else -> null
+                // 6.1 未知 type 不再返回 null（会导致非空 SongOrigin 字段 NPE），
+                //      回退为 Online 空值，保证字段非空。
+                else -> SongOrigin.Online("", "")
             }
         }
     }
@@ -230,7 +232,9 @@ object MusicRepository {
     /** 解析单个对象；非法 JSON 或类型不匹配返回 null。 */
     private fun <T> parse(json: String, clazz: Class<T>): T? = try {
         gson.fromJson(json, clazz)
-    } catch (e: JsonSyntaxException) {
+    } catch (e: Exception) {
+        // 6.2 捕获所有解析异常（含 JsonSyntaxException / IllegalStateException / JsonParseException 等），
+        //     不再仅捕获 JsonSyntaxException。
         null
     }
 
@@ -240,9 +244,8 @@ object MusicRepository {
         return try {
             @Suppress("UNCHECKED_CAST")
             gson.fromJson<List<T>>(json, type)
-        } catch (e: JsonSyntaxException) {
-            null
-        } catch (e: IllegalStateException) {
+        } catch (e: Exception) {
+            // 6.2 捕获所有解析异常，统一返回 null。
             null
         }
     }
@@ -250,13 +253,25 @@ object MusicRepository {
     /**
      * 简单推断数组元素类型：根据首个对象的字段猜测 Song / Leaderboard。
      * 这里为搜索/本地歌曲/排行榜三类数组服务：含 "songs" 字段视为 Leaderboard，
-     * 含 "source_id" + "title" 视为 Song，其余回退为 Song。
+     * 其余回退为 Song。
+     *
+     * 6.5 修复：原实现使用 String.contains 全文匹配，会把含 "songs" 子串的非对象元素误判；
+     *           改用 JsonParser 解析首元素并检查 "songs" 字段。
      */
     private fun inferElementType(json: String): Class<*> {
-        val sample = json.trim()
-        return when {
-            sample.contains("\"songs\"") && sample.contains("\"source_id\"") -> Leaderboard::class.java
-            else -> Song::class.java
+        return try {
+            val element = JsonParser.parseString(json.trim())
+            if (!element.isJsonArray) return Song::class.java
+            val array = element.asJsonArray
+            if (array.size() == 0) return Song::class.java
+            val first = array[0]
+            if (first.isJsonObject && first.asJsonObject.has("songs")) {
+                Leaderboard::class.java
+            } else {
+                Song::class.java
+            }
+        } catch (e: Exception) {
+            Song::class.java
         }
     }
 }

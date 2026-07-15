@@ -61,6 +61,7 @@ import com.musicplayer.app.ui.theme.SurfaceAlt
 import com.musicplayer.app.ui.theme.TextPrimary
 import com.musicplayer.app.ui.theme.TextSecondary
 import com.musicplayer.app.ui.theme.TextTertiary
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Composable
@@ -70,6 +71,8 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
     var error by remember { mutableStateOf<String?>(null) }
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    // 5.3 持有当前搜索协程，发起下一次搜索前 cancel 旧请求，避免乱序回填覆盖新结果。
+    var searchJob by remember { mutableStateOf<Job?>(null) }
     val playerState by player.state.collectAsState()
     val currentSong = playerState.currentSong
 
@@ -96,7 +99,9 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
             Button(
                 onClick = {
                     if (keyword.isBlank()) return@Button
-                    scope.launch {
+                    // 5.3 取消上一次未完成的搜索，防止旧结果覆盖新结果。
+                    searchJob?.cancel()
+                    searchJob = scope.launch {
                         loading = true
                         error = null
                         val result = MusicRepository.search(keyword)
@@ -129,7 +134,7 @@ fun SearchScreen(player: PlayerManager = viewModel()) {
             EmptyState("暂无搜索结果", "输入关键词后点击搜索", icon = Icons.Filled.Search)
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                itemsIndexed(songs) { i, song ->
+                itemsIndexed(songs, key = { _, item -> item.id }) { i, song ->
                     SongRowItem(
                         index = i + 1,
                         song = song,

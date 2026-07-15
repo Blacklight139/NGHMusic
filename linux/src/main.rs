@@ -12,6 +12,7 @@ use gtk4::{gdk, Application, ApplicationWindow, CssProvider, Orientation, Paned,
 mod core_service;
 mod player_service;
 mod theme;
+mod utils;
 mod views;
 
 use player_service::PlayerService;
@@ -22,6 +23,9 @@ use views::sidebar::create_sidebar;
 const APP_ID: &str = "com.nghmusic.linux";
 
 fn main() {
+    // 初始化日志后端（由 RUST_LOG 环境变量控制级别）。
+    env_logger::init();
+
     // 初始化 GStreamer（必须在创建 GTK Application 之前）。
     gstreamer::init().expect("初始化 GStreamer 失败");
 

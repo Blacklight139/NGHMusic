@@ -16,6 +16,7 @@ use gtk4::prelude::*;
 
 use crate::player_service::PlayerService;
 use crate::theme;
+use crate::utils::{format_artists, format_duration};
 use music_core::models::*;
 
 /// 创建播放列表页组件。
@@ -246,22 +247,4 @@ fn create_queue_row(song: &Song, _index: usize, is_current: bool) -> gtk4::ListB
     row.set_focusable(false);
     row.set_activatable(true);
     row
-}
-
-/// 格式化艺术家列表为「A / B / C」形式。
-fn format_artists(artists: &[String]) -> String {
-    artists.join(" / ")
-}
-
-/// 将毫秒时长格式化为 `mm:ss`。
-fn format_duration(duration_ms: Option<u64>) -> String {
-    match duration_ms {
-        Some(ms) => {
-            let total_secs = ms / 1000;
-            let mins = total_secs / 60;
-            let secs = total_secs % 60;
-            format!("{mins:02}:{secs:02}")
-        }
-        None => "--:--".to_string(),
-    }
 }

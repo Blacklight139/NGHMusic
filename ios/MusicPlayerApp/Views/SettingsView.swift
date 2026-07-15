@@ -38,10 +38,12 @@ struct SettingsView: View {
                 if sources.isEmpty {
                     sourceEmptyState
                 } else {
+                    // IOS-016 修复：MusicCoreBridge.reorderSources / updateSourcePriority 当前为
+                    // no-op（核心 FFI 未暴露优先级变更 ABI），拖动排序不会持久化，故移除 .onMove，
+                    // 避免乐观 UI 更新与实际状态不一致。桥接支持后再恢复。
                     ForEach(sources) { source in
                         sourceRow(source)
                     }
-                    .onMove(perform: moveFromOffsets)
                 }
             } header: {
                 sourceSectionHeader
@@ -259,39 +261,15 @@ struct SettingsView: View {
     }
 
     private func canMove(_ source: SourceInfo, up: Bool) -> Bool {
-        guard let idx = sources.firstIndex(where: { $0.id == source.id }) else { return false }
-        return up ? idx > 0 : idx < sources.count - 1
+        // IOS-016 修复：MusicCoreBridge.reorderSources / updateSourcePriority 当前为 no-op
+        // （核心 FFI 未暴露优先级变更 ABI），排序不会持久化 → 禁用上移/下移按钮，
+        // 避免乐观 UI 更新与实际状态不一致。桥接支持后再恢复。
+        return false
     }
 
-    /// 上移 / 下移：交换后调用 reorderSources
+    /// 上移 / 下移：桥接层 reorderSources 为 no-op，不执行乐观更新（见 canMove 注释）。
     private func moveSource(_ source: SourceInfo, up: Bool) {
-        guard let idx = sources.firstIndex(where: { $0.id == source.id }) else { return }
-        let target = up ? idx - 1 : idx + 1
-        guard target >= 0, target < sources.count else { return }
-        sources.swapAt(idx, target)
-        let orderedIds = sources.map { $0.id }
-        Task {
-            do {
-                try await MusicCoreBridge.reorderSources(orderedIds: orderedIds)
-            } catch {
-                importErrorMessage = "排序失败：\(error.localizedDescription)"
-                await loadSources()
-            }
-        }
-    }
-
-    /// .onMove 拖动排序：调整数组后调用 reorderSources
-    private func moveFromOffsets(from source: IndexSet, to destination: Int) {
-        sources.move(fromOffsets: source, toOffset: destination)
-        let orderedIds = sources.map { $0.id }
-        Task {
-            do {
-                try await MusicCoreBridge.reorderSources(orderedIds: orderedIds)
-            } catch {
-                importErrorMessage = "排序失败：\(error.localizedDescription)"
-                await loadSources()
-            }
-        }
+        // no-op：排序不会持久化，保持 sources 数组不变。
     }
 
     /// 开关：乐观更新本地状态，失败回退

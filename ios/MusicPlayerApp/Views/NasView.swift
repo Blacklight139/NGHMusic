@@ -364,16 +364,22 @@ struct NasView: View {
     }
 
     private func checkHealth() async {
-        healthText = "检测中…"
-        healthOk = nil
+        await MainActor.run {
+            healthText = "检测中…"
+            healthOk = nil
+        }
         do {
             let resp = try await retry { try await MusicCoreBridge.feiniuHealth() }
-            healthOk = resp.healthy
-            healthText = resp.healthy ? "飞牛服务可达" : "飞牛服务不可达"
+            await MainActor.run {
+                healthOk = resp.healthy
+                healthText = resp.healthy ? "飞牛服务可达" : "飞牛服务不可达"
+            }
         } catch {
-            healthOk = false
-            healthText = "健康检查失败"
-            errorMessage = formatError(error)
+            await MainActor.run {
+                healthOk = false
+                healthText = "健康检查失败"
+                errorMessage = formatError(error)
+            }
         }
     }
 
@@ -381,38 +387,46 @@ struct NasView: View {
         let base = baseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
         let user = username.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty, !user.isEmpty else {
-            errorMessage = "请填写服务地址与用户名"
+            await MainActor.run { errorMessage = "请填写服务地址与用户名" }
             return
         }
-        feiniuLoading = true
+        await MainActor.run { feiniuLoading = true }
         do {
             _ = try await MusicCoreBridge.feiniuLogin(baseUrl: base, username: user, password: password)
-            feiniuPath = "/"
+            await MainActor.run {
+                feiniuPath = "/"
+                infoMessage = "登录成功"
+            }
             await refreshFeiniuFiles()
-            infoMessage = "登录成功"
         } catch {
-            if isStatus(error, 401) {
-                errorMessage = "用户名或密码错误（401），请检查凭据后重试。"
-            } else {
-                errorMessage = "登录失败：" + formatError(error)
+            await MainActor.run {
+                if isStatus(error, 401) {
+                    errorMessage = "用户名或密码错误（401），请检查凭据后重试。"
+                } else {
+                    errorMessage = "登录失败：" + formatError(error)
+                }
             }
         }
-        feiniuLoading = false
+        await MainActor.run { feiniuLoading = false }
     }
 
     private func refreshFeiniuFiles() async {
-        feiniuLoading = true
+        await MainActor.run { feiniuLoading = true }
+        let path = feiniuPath
         do {
-            let files = try await retry { try await MusicCoreBridge.feiniuListFiles(path: feiniuPath) }
-            feiniuFiles = files.sorted { a, b in
+            let files = try await retry { try await MusicCoreBridge.feiniuListFiles(path: path) }
+            let sorted = files.sorted { a, b in
                 if a.isDir != b.isDir { return a.isDir && !b.isDir }
                 return a.name < b.name
             }
+            await MainActor.run { feiniuFiles = sorted }
         } catch {
-            feiniuFiles = []
-            errorMessage = "列目录失败：" + formatError(error)
+            await MainActor.run {
+                feiniuFiles = []
+                errorMessage = "列目录失败：" + formatError(error)
+            }
         }
-        feiniuLoading = false
+        await MainActor.run { feiniuLoading = false }
     }
 
     private func handleFeiniuTap(_ file: NasFile) {
@@ -426,25 +440,32 @@ struct NasView: View {
     }
 
     private func playFeiniu(_ file: NasFile) async {
-        feiniuLoading = true
+        await MainActor.run { feiniuLoading = true }
         let full = joinPath(parent: feiniuPath, name: file.name, isDir: false)
         do {
             let url = try await retry { try await MusicCoreBridge.feiniuStream(path: full) }
             guard !url.isEmpty else {
-                errorMessage = "未获取到播放地址"
-                feiniuLoading = false
+                await MainActor.run {
+                    errorMessage = "未获取到播放地址"
+                    feiniuLoading = false
+                }
                 return
             }
-            let song = Song(id: "feiniu-" + file.name, sourceId: "feiniu", title: file.name,
+            // IOS-014 修复：Song id 拼入完整路径，防止不同目录下同名文件 id 冲突。
+            let song = Song(id: "feiniu-" + full, sourceId: "feiniu", title: file.name,
                             artists: [], album: nil, coverUrl: nil, durationMs: nil, lyricUrl: nil,
                             playUrl: url, localPath: nil,
                             origin: .nas(protocolName: "feiniu", url: url))
-            await MainActor.run { player.play(song: song) }
-            infoMessage = "开始播放：" + file.name
+            await MainActor.run {
+                player.play(song: song)
+                infoMessage = "开始播放：" + file.name
+            }
         } catch {
-            errorMessage = "获取播放地址失败：" + formatError(error)
+            await MainActor.run {
+                errorMessage = "获取播放地址失败：" + formatError(error)
+            }
         }
-        feiniuLoading = false
+        await MainActor.run { feiniuLoading = false }
     }
 
     private func goFeiniuUp() {
@@ -459,7 +480,7 @@ struct NasView: View {
             let list = try await MusicCoreBridge.protocolList()
             await MainActor.run { protocolSources = list }
         } catch {
-            errorMessage = "加载协议源失败：" + formatError(error)
+            await MainActor.run { errorMessage = "加载协议源失败：" + formatError(error) }
         }
     }
 
@@ -473,9 +494,9 @@ struct NasView: View {
                 newSourceJson = ""
             }
             await loadProtocolSources()
-            infoMessage = "协议源已添加"
+            await MainActor.run { infoMessage = "协议源已添加" }
         } catch {
-            errorMessage = "添加协议源失败：" + formatError(error)
+            await MainActor.run { errorMessage = "添加协议源失败：" + formatError(error) }
         }
     }
 
@@ -484,28 +505,32 @@ struct NasView: View {
             try await MusicCoreBridge.protocolDelete(id: src.id)
             if selectedSourceId == src.id { await MainActor.run { selectedSourceId = nil } }
             await loadProtocolSources()
-            infoMessage = "已删除协议源 " + src.id
+            await MainActor.run { infoMessage = "已删除协议源 " + src.id }
         } catch {
-            errorMessage = "删除失败：" + formatError(error)
+            await MainActor.run { errorMessage = "删除失败：" + formatError(error) }
         }
     }
 
     private func refreshProtocolEntries() async {
         guard let id = selectedSourceId, !id.isEmpty else { return }
-        protocolLoading = true
+        await MainActor.run { protocolLoading = true }
+        let path = protocolPath
         do {
-            let entries = try await retry { try await MusicCoreBridge.protocolListFiles(id: id, path: protocolPath) }
-            protocolEntries = entries.sorted { a, b in
+            let entries = try await retry { try await MusicCoreBridge.protocolListFiles(id: id, path: path) }
+            let sorted = entries.sorted { a, b in
                 let aDir = a.hasSuffix("/")
                 let bDir = b.hasSuffix("/")
                 if aDir != bDir { return aDir && !bDir }
                 return a < b
             }
+            await MainActor.run { protocolEntries = sorted }
         } catch {
-            protocolEntries = []
-            errorMessage = "浏览失败：" + formatError(error)
+            await MainActor.run {
+                protocolEntries = []
+                errorMessage = "浏览失败：" + formatError(error)
+            }
         }
-        protocolLoading = false
+        await MainActor.run { protocolLoading = false }
     }
 
     private func handleProtocolTap(name: String, isDir: Bool) {
@@ -520,25 +545,32 @@ struct NasView: View {
 
     private func playProtocol(name: String) async {
         guard let id = selectedSourceId else { return }
-        protocolLoading = true
+        await MainActor.run { protocolLoading = true }
         let full = joinPath(parent: protocolPath, name: name, isDir: false)
         do {
             let url = try await retry { try await MusicCoreBridge.protocolStream(id: id, path: full) }
             guard !url.isEmpty else {
-                errorMessage = "未获取到播放地址"
-                protocolLoading = false
+                await MainActor.run {
+                    errorMessage = "未获取到播放地址"
+                    protocolLoading = false
+                }
                 return
             }
-            let song = Song(id: "proto-" + name, sourceId: "protocol", title: name,
+            // IOS-014 修复：Song id 拼入完整路径，防止不同目录下同名文件 id 冲突。
+            let song = Song(id: "proto-" + full, sourceId: "protocol", title: name,
                             artists: [], album: nil, coverUrl: nil, durationMs: nil, lyricUrl: nil,
                             playUrl: url, localPath: nil,
                             origin: .nas(protocolName: "protocol", url: url))
-            await MainActor.run { player.play(song: song) }
-            infoMessage = "开始播放：" + name
+            await MainActor.run {
+                player.play(song: song)
+                infoMessage = "开始播放：" + name
+            }
         } catch {
-            errorMessage = "获取播放地址失败：" + formatError(error)
+            await MainActor.run {
+                errorMessage = "获取播放地址失败：" + formatError(error)
+            }
         }
-        protocolLoading = false
+        await MainActor.run { protocolLoading = false }
     }
 
     private func goProtocolUp() {
@@ -559,7 +591,9 @@ struct NasView: View {
             } catch {
                 last = error
                 if !isRetryable(error) || attempt == 3 { break }
-                try? await Task.sleep(nanoseconds: delays[attempt])
+                // IOS-015 修复：使用 try 而非 try?，保留 CancellationError 传播语义，
+                // 使上层 Task 取消时能立即终止重试。
+                try await Task.sleep(nanoseconds: delays[attempt])
             }
         }
         throw last ?? MusicCoreBridgeError.message("重试后仍失败")

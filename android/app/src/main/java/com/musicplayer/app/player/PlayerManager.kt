@@ -71,6 +71,10 @@ class PlayerManager(app: Application) : AndroidViewModel(app) {
                 if (playbackState == Player.STATE_READY) {
                     val d = exoPlayer.duration.takeIf { it > 0 } ?: 0L
                     _state.value = _state.value.copy(duration = d)
+                } else if (playbackState == Player.STATE_ENDED) {
+                    // 4.1 修复自动切歌：因仅使用 setMediaItem（单项），MEDIA_ITEM_TRANSITION_REASON_AUTO
+                    // 永不触发，故在 STATE_ENDED 中调用 moveToNext(auto = true) 兜底切到下一首。
+                    moveToNext(auto = true)
                 }
             }
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -107,11 +111,10 @@ class PlayerManager(app: Application) : AndroidViewModel(app) {
      */
     fun play(song: Song, queue: List<Song> = emptyList()) {
         if (queue.isNotEmpty()) this.queue = queue
-        val exo = player ?: return
         // 公开入口允许重算 index（用户点选的具体歌曲定位到队列位置）。
         index = this.queue.indexOfFirst { it.id == song.id }.takeIf { it >= 0 } ?: index
         _state.value = _state.value.copy(queue = this.queue)
-        applyMediaItem(exo, song)
+        applyMediaItem(song)
     }
 
     /**
@@ -122,17 +125,29 @@ class PlayerManager(app: Application) : AndroidViewModel(app) {
         if (queue.isEmpty()) return
         val safeIndex = targetIndex.coerceIn(0, queue.lastIndex)
         index = safeIndex
-        val exo = player ?: return
-        applyMediaItem(exo, queue[safeIndex])
+        applyMediaItem(queue[safeIndex])
     }
 
     /** 实际设置 MediaItem 并开始播放。 */
-    private fun applyMediaItem(exo: ExoPlayer, song: Song) {
-        _state.value = _state.value.copy(currentSong = song)
+    private fun applyMediaItem(song: Song) {
         val url = song.playUrl ?: song.localPath
-        if (url.isNullOrBlank()) return
+        if (url.isNullOrBlank()) {
+            // 4.4 URL 为空：不更新 currentSong，避免 UI 显示无法播放的歌曲；置为非播放态。
+            _state.value = _state.value.copy(currentSong = null, isPlaying = false)
+            return
+        }
+        _state.value = _state.value.copy(currentSong = song)
+        // 4.2 本地路径（如 /music/a.mp3）需补全 file:// scheme，Uri.parse 不会自动添加。
+        val uri = if (url.startsWith("/")) {
+            Uri.fromFile(java.io.File(url))
+        } else {
+            Uri.parse(url)
+        }
+        // 4.3 在锁内重新读取 player 引用，避免与 onCleared 中的 release 竞态；
+        //     不再接收外部传入的 exo 引用。
         synchronized(playerLock) {
-            exo.setMediaItem(MediaItem.fromUri(Uri.parse(url)))
+            val exo = player ?: return
+            exo.setMediaItem(MediaItem.fromUri(uri))
             exo.prepare()
             exo.playWhenReady = true
         }

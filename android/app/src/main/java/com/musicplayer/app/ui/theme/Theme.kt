@@ -90,7 +90,9 @@ fun Modifier.nghClickableScale(onClick: () -> Unit): Modifier = composed {
             scaleX = scale
             scaleY = scale
         }
-        .pointerInput(Unit) {
+        // 7.1 修复：以 onClick 作为 key，lambda 在 onClick 变化时重启，捕获最新回调；
+        //      原 pointerInput(Unit) 仅创建一次，会一直调用首次的 onClick 闭包。
+        .pointerInput(onClick) {
             detectTapGestures(
                 onPress = {
                     pressed = true

@@ -280,12 +280,31 @@ impl CacheManager {
     }
 }
 
-/// 将 key 中的非字母数字字符替换为 "_"，作为文件名与索引键。
-/// 这样 song_id 中的特殊字符不会破坏文件路径。
+/// 将 key 转换为安全的文件名与索引键。
+///
+/// 旧实现将所有非字母数字字符替换为 "_"，导致 `song_1` / `song-1` / `song 1`
+/// 等不同 key 映射到同一缓存键，产生碰撞。现采用「字母数字前缀 + 完整哈希」
+/// 策略：哈希保证不同 key 必生成不同缓存键（消除碰撞），前缀保留可读性。
 fn sanitize_key(key: &str) -> String {
-    key.chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '_' })
-        .collect()
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    key.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    // 取字母数字字符作为可读前缀（截断以避免文件名过长），并过滤掉路径分隔符。
+    // 即使两个 key 字母数字部分相同，哈希后缀也会区分它们。
+    let prefix: String = key
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .take(32)
+        .collect();
+    if prefix.is_empty() {
+        format!("_{:016x}", hash)
+    } else {
+        format!("{}_{:016x}", prefix, hash)
+    }
 }
 
 #[cfg(test)]

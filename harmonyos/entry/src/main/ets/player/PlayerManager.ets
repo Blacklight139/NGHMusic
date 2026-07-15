@@ -51,10 +51,16 @@ export class PlayerManager {
   private avPlayer: media.AVPlayer | null = null;
   // HAR-006：in-flight Promise 缓存，并发 ensurePlayer 调用复用同一次 createAVPlayer 结果。
   private ensurePlayerPromise: Promise<media.AVPlayer | null> | null = null;
-  // HAR-005：等待 AVPlayer 状态机推进到目标状态的临时回调（reset→idle / prepare→prepared）。
-  private stateWaiter: ((state: string) => void) | null = null;
+  // HAR-005：等待 AVPlayer 状态机推进到目标状态的回调队列（reset→idle / prepare→prepared）。
+  // 13.3 修复：原 stateWaiter 为单回调，并发 waitForState 会互相覆写导致前一个永不 resolve；
+  //          改为数组，每次调用注册独立回调，stateChange 时遍历通知所有等待者。
+  private stateWaiters: Array<(state: string) => void> = [];
   private queue: QueueItem[] = [];
   private index: number = 0;
+  // 13.2 修复：release 进行中标志与 in-flight Promise，ensurePlayer 检测到时等待 release 完成，
+  //          避免 ensurePlayer 与 release 竞态（旧实例释放途中又创建新实例造成回调混乱）。
+  private isReleasing: boolean = false;
+  private releasePromise: Promise<void> | null = null;
 
   private status: PlayerStatus = {
     currentTitle: '未在播放',
@@ -75,10 +81,20 @@ export class PlayerManager {
   /**
    * 确保 AVPlayer 已创建。HAR-002：包裹 try-catch，避免 createAVPlayer 抛错冒泡。
    * HAR-006 修复：并发调用复用同一 in-flight Promise，避免创建多个 AVPlayer 实例造成泄漏。
+   * 13.2 修复：若 release 正在进行，等待其完成后再决定是否创建，避免与 release 竞态。
    */
   private ensurePlayer(): Promise<media.AVPlayer | null> {
     if (this.avPlayer) {
       return Promise.resolve(this.avPlayer);
+    }
+    // 13.2：release 进行中时等待其完成，避免在旧实例释放途中又创建新实例造成回调混乱。
+    if (this.isReleasing && this.releasePromise) {
+      return this.releasePromise.then(() => {
+        if (this.avPlayer) {
+          return this.avPlayer;
+        }
+        return this.ensurePlayer();
+      });
     }
     if (this.ensurePlayerPromise) {
       return this.ensurePlayerPromise;
@@ -99,9 +115,11 @@ export class PlayerManager {
           console.error('[PlayerManager] AVPlayer 进入 error 状态');
           this.update({ isPlaying: false });
         }
-        // HAR-005：通知等待者状态机已推进（reset→idle / prepare→prepared）。
-        const waiter = this.stateWaiter;
-        if (waiter) {
+        // HAR-005：通知所有等待者状态机已推进（reset→idle / prepare→prepared）。
+        // 13.3 修复：遍历回调数组并清空队列，每个 waitForState 调用都有独立的 resolver。
+        const waiters = this.stateWaiters;
+        this.stateWaiters = [];
+        for (const waiter of waiters) {
           waiter(state);
         }
       });
@@ -128,26 +146,28 @@ export class PlayerManager {
   /**
    * 等待 AVPlayer 状态机推进到 target 状态。HAR-005 辅助：load 中等待 reset→idle 与 prepare→prepared。
    * 超时返回 false（不阻塞调用方），由调用方决定是否继续。
+   * 13.3 修复：每次调用注册独立回调到 stateWaiters 数组，支持多 waitForState 并发等待。
    */
   private waitForState(target: string, timeoutMs: number = 5000): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       let done = false;
+      const waiter = (state: string) => {
+        if (state === target && !done) {
+          done = true;
+          clearTimeout(timer);
+          resolve(true);
+        }
+      };
       const timer = setTimeout(() => {
         if (!done) {
           done = true;
-          this.stateWaiter = null;
+          // 13.3：从队列移除本等待者，避免后续状态变更触发已超时的回调。
+          this.stateWaiters = this.stateWaiters.filter((w) => w !== waiter);
           console.warn(`[PlayerManager] waitForState('${target}') 超时`);
           resolve(false);
         }
       }, timeoutMs);
-      this.stateWaiter = (state: string) => {
-        if (state === target && !done) {
-          done = true;
-          clearTimeout(timer);
-          this.stateWaiter = null;
-          resolve(true);
-        }
-      };
+      this.stateWaiters.push(waiter);
     });
   }
 
@@ -352,20 +372,55 @@ export class PlayerManager {
 
   /**
    * HAR-004 修复：显式释放 AVPlayer，进入 released 状态。
+   * 13.1 修复：通过 off() 注销所有已注册的回调（stateChange/durationUpdate/timeUpdate/complete），
+   *          防止销毁后回调悬空泄漏。
+   * 13.2 修复：标记 isReleasing 并暴露 in-flight releasePromise，让并发 ensurePlayer 等待释放完成。
    * 在 EntryAbility onDestroy / 页面 aboutToDisappear 时调用，避免依赖 GC。
    */
   async release(): Promise<void> {
-    if (!this.avPlayer) {
+    // 13.2：若已有 release 在进行，复用其 Promise 避免重复释放。
+    if (this.isReleasing && this.releasePromise) {
+      return this.releasePromise;
+    }
+    this.isReleasing = true;
+    this.releasePromise = this.doRelease();
+    try {
+      await this.releasePromise;
+    } finally {
+      this.isReleasing = false;
+      this.releasePromise = null;
+    }
+  }
+
+  private async doRelease(): Promise<void> {
+    const player = this.avPlayer;
+    if (!player) {
+      // 无实例：仅清理可能残留的等待者与 in-flight 缓存。
+      this.stateWaiters = [];
+      this.ensurePlayerPromise = null;
       return;
     }
+    // 13.1：先注销所有回调，避免 release 过程中触发已失效的状态更新与悬空引用。
+    try { player.off('stateChange'); } catch (e) {
+      console.warn(`[PlayerManager] off stateChange 失败: ${(e as Error).message ?? e}`);
+    }
+    try { player.off('durationUpdate'); } catch (e) {
+      console.warn(`[PlayerManager] off durationUpdate 失败: ${(e as Error).message ?? e}`);
+    }
+    try { player.off('timeUpdate'); } catch (e) {
+      console.warn(`[PlayerManager] off timeUpdate 失败: ${(e as Error).message ?? e}`);
+    }
+    try { player.off('complete'); } catch (e) {
+      console.warn(`[PlayerManager] off complete 失败: ${(e as Error).message ?? e}`);
+    }
     try {
-      await this.avPlayer.release();
+      await player.release();
     } catch (e) {
       console.error(`[PlayerManager] release 失败: ${(e as Error).message ?? e}`);
     } finally {
       this.avPlayer = null;
       // HAR-005/HAR-006：释放时清理等待者与 in-flight 创建缓存，避免悬空回调 / 旧 Promise 复用。
-      this.stateWaiter = null;
+      this.stateWaiters = [];
       this.ensurePlayerPromise = null;
       this.update({
         isPlaying: false,

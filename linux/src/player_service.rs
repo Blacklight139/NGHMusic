@@ -47,6 +47,9 @@ struct PlayerStateInner {
     queue: Vec<Song>,
     /// 当前曲目在队列中的索引，-1 表示未选中
     current_index: i32,
+    /// 状态脏标记：seek 时置 true，由周期定时器延迟写盘（防抖），
+    /// 避免拖动进度条时高频写盘。
+    dirty: bool,
 }
 
 impl Default for PlayerStateInner {
@@ -60,6 +63,7 @@ impl Default for PlayerStateInner {
             mode: PlayMode::Sequential,
             queue: Vec::new(),
             current_index: -1,
+            dirty: false,
         }
     }
 }
@@ -126,12 +130,14 @@ impl PlayerService {
             })
             .expect("注册 playbin 总线监听失败");
 
-        // 500ms 周期：刷新当前播放位置与总时长
+        // 500ms 周期：刷新当前播放位置与总时长，并在脏标记置位时延迟写盘（防抖）
         let state_for_tick = Arc::clone(&state);
         let playbin_for_tick = playbin.clone();
+        let state_file_for_tick = state_file.clone();
         let position_source_id = glib::source::timeout_add_local(
             Duration::from_millis(500),
             move || {
+                let mut dirty = false;
                 if let Ok(mut s) = state_for_tick.lock() {
                     if s.is_playing {
                         if let Some(pos) = playbin_for_tick.query_position::<ClockTime>() {
@@ -141,6 +147,14 @@ impl PlayerService {
                             s.duration = dur.seconds_f64();
                         }
                     }
+                    if s.dirty {
+                        s.dirty = false;
+                        dirty = true;
+                    }
+                }
+                // 锁已释放后再写盘，避免持锁 I/O
+                if dirty {
+                    Self::save_state(&state_for_tick, &state_file_for_tick);
                 }
                 ControlFlow::Continue
             },
@@ -166,7 +180,7 @@ impl PlayerService {
     pub fn load_queue(&self, songs: Vec<Song>, start_index: usize) {
         if songs.is_empty() {
             // 空队列：停止 playbin 并复位状态
-            let _ = self.playbin.set_state(State::Null);
+            Self::set_playbin_state(&self.playbin, State::Null, "load_queue 空队列");
             if let Ok(mut s) = self.state.lock() {
                 s.current_index = -1;
                 s.current_song = None;
@@ -205,7 +219,7 @@ impl PlayerService {
 
     /// 暂停播放。
     pub fn pause(&self) {
-        let _ = self.playbin.set_state(State::Paused);
+        Self::set_playbin_state(&self.playbin, State::Paused, "pause");
         if let Ok(mut s) = self.state.lock() {
             s.is_playing = false;
         }
@@ -214,7 +228,7 @@ impl PlayerService {
 
     /// 继续播放（从暂停恢复）。
     pub fn resume(&self) {
-        let _ = self.playbin.set_state(State::Playing);
+        Self::set_playbin_state(&self.playbin, State::Playing, "resume");
         if let Ok(mut s) = self.state.lock() {
             s.is_playing = true;
         }
@@ -223,7 +237,7 @@ impl PlayerService {
 
     /// 停止播放并复位位置。
     pub fn stop(&self) {
-        let _ = self.playbin.set_state(State::Null);
+        Self::set_playbin_state(&self.playbin, State::Null, "stop");
         if let Ok(mut s) = self.state.lock() {
             s.is_playing = false;
             s.current_time = 0.0;
@@ -254,15 +268,21 @@ impl PlayerService {
     }
 
     /// 跳转到指定秒数位置。
+    ///
+    /// 不立即写盘：仅标记脏，由 500ms 周期定时器延迟持久化（防抖），
+    /// 避免拖动进度条时高频磁盘 I/O。
     pub fn seek(&self, position_seconds: f64) {
         let pos = position_seconds.max(0.0);
-        let _ = self
+        if let Err(e) = self
             .playbin
-            .seek_simple(SeekFlags::FLUSH, ClockTime::from_seconds_f64(pos));
+            .seek_simple(SeekFlags::FLUSH, ClockTime::from_seconds_f64(pos))
+        {
+            log::warn!("seek 失败: {e}");
+        }
         if let Ok(mut s) = self.state.lock() {
             s.current_time = pos;
+            s.dirty = true;
         }
-        Self::save_state(&self.state, &self.state_file);
     }
 
     /// 按进度比例（0.0 ~ 1.0）跳转。
@@ -381,6 +401,13 @@ impl PlayerService {
     // 内部辅助
     // =================================================================
 
+    /// 设置 playbin 状态，失败时记录日志而非静默忽略。
+    fn set_playbin_state(playbin: &Element, state: State, context: &str) {
+        if let Err(e) = playbin.set_state(state) {
+            log::warn!("设置 playbin 状态失败（{context}）: {e}");
+        }
+    }
+
     /// 装载指定索引曲目并开始播放。
     ///
     /// URL 解析规则：优先使用 `local_path` 转为 `file://` URI，
@@ -411,7 +438,7 @@ impl PlayerService {
 
         let duration = song.duration_ms.map(|ms| ms as f64 / 1000.0).unwrap_or(0.0);
 
-        let _ = playbin.set_state(State::Null);
+        Self::set_playbin_state(playbin, State::Null, "load_and_play 复位");
         playbin.set_property("uri", uri);
         playbin.set_property("volume", f64::from(volume));
 
@@ -422,7 +449,7 @@ impl PlayerService {
             s.current_time = 0.0;
             s.duration = duration;
         }
-        let _ = playbin.set_state(State::Playing);
+        Self::set_playbin_state(playbin, State::Playing, "load_and_play 播放");
         Self::save_state(state, state_file);
     }
 
@@ -442,7 +469,7 @@ impl PlayerService {
             Some(idx) => Self::load_and_play(playbin, state, state_file, idx),
             None => {
                 // 顺序模式播放完毕：停止并复位
-                let _ = playbin.set_state(State::Null);
+                Self::set_playbin_state(playbin, State::Null, "advance_on_eos 停止");
                 if let Ok(mut s) = state.lock() {
                     s.is_playing = false;
                     s.current_time = 0.0;
@@ -495,20 +522,13 @@ impl PlayerService {
         }
     }
 
-    /// 基于系统时钟生成伪随机索引，尽量避开 `exclude`。
+    /// 使用 `rand` crate 生成均匀分布的随机索引，尽量避开 `exclude`。
     fn random_index(len: usize, exclude: i32) -> usize {
         if len <= 1 {
             return 0;
         }
-        let seed = std::time::SystemTime::now()
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .map(|d| d.as_nanos() as u64)
-            .unwrap_or(0x9E37_79B9_7F4A_7C15);
-        let mut x = seed.wrapping_add(1);
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        let mut idx = (x % len as u64) as usize;
+        let mut rng = rand::thread_rng();
+        let mut idx = rand::Rng::gen_range(&mut rng, 0..len);
         if idx == exclude as usize && exclude >= 0 {
             idx = (idx + 1) % len;
         }
@@ -516,6 +536,10 @@ impl PlayerService {
     }
 
     /// 将当前状态快照序列化写入磁盘。
+    ///
+    /// 注意：仅持久化音量、播放模式、当前曲目 id/索引/位置等元信息，
+    /// 不持久化完整队列（队列由上层 UI 重新装载）。重启后仅恢复音量与模式，
+    /// 不恢复播放位置与队列（完整状态恢复未实现）。
     fn save_state(state: &Arc<Mutex<PlayerStateInner>>, path: &Path) {
         let snap = match state.lock() {
             Ok(s) => PlayState {
@@ -569,8 +593,12 @@ impl Default for PlayerService {
 
 impl Drop for PlayerService {
     fn drop(&mut self) {
+        // 移除位置更新定时器，避免 drop 后定时器仍触发并访问已释放的 playbin。
+        if let Some(id) = self._position_source_id.take() {
+            id.remove();
+        }
         // 释放 GStreamer 资源：将 playbin 置为 NULL 状态，
-        // 停止总线监听与位置更新定时器（guard/id drop 时自动移除）。
-        let _ = self.playbin.set_state(State::Null);
+        // 停止总线监听（BusWatchGuard drop 时自动移除）。
+        Self::set_playbin_state(&self.playbin, State::Null, "Drop");
     }
 }

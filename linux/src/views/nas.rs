@@ -22,6 +22,7 @@ use music_core::models::*;
 use crate::core_service::{CoreService, ProtocolSourceInfo};
 use crate::player_service::PlayerService;
 use crate::theme;
+use crate::utils::{create_proto_row, format_size};
 
 /// 异步消息：NAS 线程 → 主线程。
 enum NasMessage {
@@ -451,7 +452,7 @@ pub fn create_nas_page(player: Arc<PlayerService>) -> gtk4::Widget {
         } else {
             proto_placeholder.set_visible(false);
             for proto in protos {
-                let row = create_protocol_row(&proto);
+                let row = create_proto_row(&proto);
                 proto_listbox_clone.append(&row);
             }
         }
@@ -482,7 +483,7 @@ pub fn create_nas_page(player: Arc<PlayerService>) -> gtk4::Widget {
                     } else {
                         proto_placeholder.set_visible(false);
                         for proto in protos {
-                            let row = create_protocol_row(&proto);
+                            let row = create_proto_row(&proto);
                             proto_listbox.append(&row);
                         }
                     }
@@ -544,48 +545,6 @@ fn create_file_row(file: &NasFile) -> ListBoxRow {
     row
 }
 
-/// 创建协议源行（协议类型 + 根路径 + 删除提示）。
-fn create_protocol_row(proto: &ProtocolSourceInfo) -> ListBoxRow {
-    let row_box = Box::new(Orientation::Horizontal, theme::SPACING_S3);
-    row_box.add_css_class("ngh-song-row");
-
-    let icon = Image::from_icon_name("network-server");
-    icon.set_pixel_size(18);
-    icon.set_valign(Align::Center);
-
-    let info = Box::new(Orientation::Vertical, 2);
-    info.set_hexpand(true);
-    info.set_halign(Align::Start);
-    let proto_label = Label::new(Some(&format!(
-        "{}{}",
-        proto.protocol,
-        if proto.placeholder { "（占位）" } else { "" }
-    )));
-    proto_label.add_css_class("ngh-song-title");
-    proto_label.set_halign(Align::Start);
-    let root_label = Label::new(Some(&proto.root));
-    root_label.add_css_class("ngh-song-artist");
-    root_label.set_halign(Align::Start);
-    root_label.set_ellipsize(EllipsizeMode::End);
-    info.append(&proto_label);
-    info.append(&root_label);
-
-    let delete_icon = Image::from_icon_name("edit-delete");
-    delete_icon.set_pixel_size(16);
-    delete_icon.set_valign(Align::Center);
-
-    row_box.append(&icon);
-    row_box.append(&info);
-    row_box.append(&delete_icon);
-
-    let row = ListBoxRow::new();
-    row.set_child(Some(&row_box));
-    row.set_focusable(false);
-    row.set_activatable(true);
-    row.set_tooltip_text(Some("点击删除该协议源"));
-    row
-}
-
 /// 拼接路径：确保路径间有且仅有一个分隔符。
 fn join_path(base: &str, name: &str) -> String {
     let base = base.trim_end_matches('/');
@@ -603,24 +562,5 @@ fn parent_path(path: &str) -> String {
         Some(0) => "/".to_string(),
         Some(idx) => trimmed[..idx].to_string(),
         None => "/".to_string(),
-    }
-}
-
-/// 格式化文件大小为人类可读字符串。
-fn format_size(size: u64) -> String {
-    if size == 0 {
-        return "—".to_string();
-    }
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-    if size >= GB {
-        format!("{:.1} GB", size as f64 / GB as f64)
-    } else if size >= MB {
-        format!("{:.1} MB", size as f64 / MB as f64)
-    } else if size >= KB {
-        format!("{:.1} KB", size as f64 / KB as f64)
-    } else {
-        format!("{size} B")
     }
 }

@@ -21,6 +21,7 @@ use music_core::models::*;
 use crate::core_service::CoreService;
 use crate::player_service::PlayerService;
 use crate::theme;
+use crate::utils::format_artists;
 
 /// 歌词页内部状态。
 struct LyricsState {
@@ -155,57 +156,17 @@ pub fn create_lyrics_page(player: Arc<PlayerService>) -> gtk4::Widget {
     let (sender, receiver) =
         glib::MainContext::channel::<LyricsMessage>(glib::Priority::default());
 
-    // --- 加载歌词 ---
-    let load_lyric = {
-        let player = Arc::clone(&player);
-        let state = Rc::clone(&state);
-        let spinner = spinner.clone();
-        let loading_box = loading_box.clone();
-        let placeholder = placeholder.clone();
-        let scrolled = scrolled.clone();
-        let listbox = listbox.clone();
-        let sender = sender.clone();
-        move || {
-            let song = match player.current_song() {
-                Some(s) => s,
-                None => {
-                    // 无当前歌曲，清空状态
-                    let mut s = state.borrow_mut();
-                    s.lyric = None;
-                    s.active_line = None;
-                    drop(s);
-                    spinner.stop();
-                    loading_box.set_visible(false);
-                    listbox_cleanup(&listbox);
-                    placeholder.set_visible(true);
-                    scrolled.set_visible(false);
-                    return;
-                }
-            };
-            // 设置加载态
-            {
-                let mut s = state.borrow_mut();
-                s.loading = true;
-            }
-            spinner.start();
-            loading_box.set_visible(true);
-            placeholder.set_visible(false);
-            scrolled.set_visible(false);
-
-            let source_id = song.source_id.clone();
-            let song_id = song.id.clone();
-            let sender = sender.clone();
-            std::thread::spawn(move || {
-                let core = CoreService::instance();
-                let result = core.get_lyric(&source_id, &song_id);
-                let message = match result {
-                    Ok(lyric) => LyricsMessage::Loaded(lyric),
-                    Err(e) => LyricsMessage::Error(format!("{e}")),
-                };
-                let _ = sender.send(message);
-            });
-        }
-    };
+    // --- 加载歌词（首次加载与刷新按钮共用同一闭包，避免重复实现） ---
+    let load_lyric = build_load_lyric_closure(
+        &player,
+        &state,
+        &spinner,
+        &loading_box,
+        &placeholder,
+        &scrolled,
+        &listbox,
+        &sender,
+    );
 
     // --- 更新歌曲信息栏 ---
     let update_song_info = {
@@ -231,21 +192,9 @@ pub fn create_lyrics_page(player: Arc<PlayerService>) -> gtk4::Widget {
     load_lyric();
 
     // --- 刷新按钮 ---
-    {
-        let load_lyric = build_load_lyric_closure(
-            &player,
-            &state,
-            &spinner,
-            &loading_box,
-            &placeholder,
-            &scrolled,
-            &listbox,
-            &sender,
-        );
-        refresh_button.connect_clicked(move |_| {
-            load_lyric();
-        });
-    }
+    refresh_button.connect_clicked(move |_| {
+        load_lyric();
+    });
 
     // --- 接收歌词结果 ---
     {
@@ -312,7 +261,7 @@ pub fn create_lyrics_page(player: Arc<PlayerService>) -> gtk4::Widget {
         let player = Arc::clone(&player);
         let listbox = listbox.clone();
         let scrolled = scrolled.clone();
-        glib::timeout_add_local(POLL_INTERVAL, move || {
+        let source_id = glib::timeout_add_local(POLL_INTERVAL, move || {
             let time_ms = (player.current_time() * 1000.0) as u64;
             let new_active = {
                 let s = state.borrow();
@@ -323,12 +272,16 @@ pub fn create_lyrics_page(player: Arc<PlayerService>) -> gtk4::Widget {
             let prev_active = state.borrow().active_line;
             if new_active != prev_active {
                 state.borrow_mut().active_line = new_active;
-                update_active_highlight(&listbox, new_active);
+                update_active_highlight(&listbox, prev_active, new_active);
                 if let Some(idx) = new_active {
                     scroll_to_row(&scrolled, &listbox, idx);
                 }
             }
             glib::ControlFlow::Continue
+        });
+        // 组件销毁时移除定时器，避免泄漏与对已销毁组件的访问
+        container.connect_destroy(move |_| {
+            source_id.remove();
         });
     }
 
@@ -431,18 +384,16 @@ fn create_lyric_row(text: &str, _idx: usize) -> gtk4::ListBoxRow {
     row
 }
 
-/// 更新当前行高亮：移除旧行的 `ngh-lyric-active`，为新行添加。
-fn update_active_highlight(listbox: &gtk4::ListBox, active: Option<usize>) {
-    // 移除所有行的高亮
-    let mut child = listbox.first_child();
-    while let Some(widget) = child {
-        if let Some(row) = widget.downcast_ref::<gtk4::ListBoxRow>() {
+/// 更新当前行高亮：仅更新上一行与当前行，避免遍历所有行。
+fn update_active_highlight(listbox: &gtk4::ListBox, prev: Option<usize>, active: Option<usize>) {
+    // 移除上一行的高亮
+    if let Some(idx) = prev {
+        if let Some(row) = listbox.row_at_index(idx as i32) {
             if let Some(label) = row.child().and_then(|c| c.downcast::<gtk4::Label>().ok()) {
                 label.remove_css_class("ngh-lyric-active");
                 label.add_css_class("ngh-label-secondary");
             }
         }
-        child = widget.next_sibling();
     }
     // 高亮当前行
     if let Some(idx) = active {
@@ -490,9 +441,4 @@ fn active_line_index(lyric: &Lyric, time_ms: u64) -> Option<usize> {
         }
     }
     idx
-}
-
-/// 格式化艺术家列表为「A / B / C」形式。
-fn format_artists(artists: &[String]) -> String {
-    artists.join(" / ")
 }

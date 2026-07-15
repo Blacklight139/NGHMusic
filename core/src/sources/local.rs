@@ -42,6 +42,14 @@ use crate::sources::Source;
 /// 本地音乐支持的扩展名（小写，不含点）。
 const SUPPORTED_EXT: &[&str] = &["mp3", "flac", "m4a", "ape", "ogg", "wav", "aac"];
 
+/// 多艺术家在 DB 中的分隔符。
+///
+/// 旧实现使用 `" / "` 作为分隔符，导致艺术家名包含 `" / "` 时往返损坏
+/// （如 `"AC/DC"` 写入后读回变成 `["AC", "DC"]`）。改用 ASCII SOH (`\u{0001}`)，
+/// 该字符几乎不会出现在真实艺术家名中。读取时优先按新分隔符切分，
+/// 若不存在则回退到旧分隔符以保证已有数据可读。
+const ARTIST_SEPARATOR: &str = "\u{0001}";
+
 /// 扫描进度快照。
 #[derive(Debug, Clone, Copy)]
 pub struct ScanProgress {
@@ -141,7 +149,9 @@ impl LocalSource {
         let mut count = 0usize;
         let mut cb = |path: &Path| {
             if is_supported_ext(path) {
-                let _ = upsert_track_path(&conn, path);
+                if let Err(e) = upsert_track_path(&conn, path) {
+                    log::warn!("索引文件失败 {:?}: {}", path, e);
+                }
                 count += 1;
                 self.scan_count.store(count, Ordering::SeqCst);
             }
@@ -238,7 +248,9 @@ impl LocalSource {
         for root in &roots {
             let mut cb = |path: &Path| {
                 if is_supported_ext(path) {
-                    let _ = upsert_track_path(&conn, path);
+                    if let Err(e) = upsert_track_path(&conn, path) {
+                        log::warn!("索引文件失败 {:?}: {}", path, e);
+                    }
                     count += 1;
                     self.scan_count.store(count, Ordering::SeqCst);
                 }
@@ -312,10 +324,14 @@ impl LocalSource {
                 }
                 if path.exists() {
                     if let Ok(conn) = db_clone.lock() {
-                        let _ = upsert_track_path(&conn, path);
+                        if let Err(e) = upsert_track_path(&conn, path) {
+                            log::warn!("watcher 索引文件失败 {:?}: {}", path, e);
+                        }
                     }
                 } else if let Ok(conn) = db_clone.lock() {
-                    let _ = delete_track_path(&conn, path);
+                    if let Err(e) = delete_track_path(&conn, path) {
+                        log::warn!("watcher 删除索引失败 {:?}: {}", path, e);
+                    }
                 }
             }
         };
@@ -344,23 +360,39 @@ impl LocalSource {
         query_all(&conn)
     }
 
-    /// 关键字搜索（title/artist/album 任一 LIKE %keyword%）（DB 访问 helper）。
-    fn search_db(&self, keyword: &str) -> Result<Vec<Song>> {
+    /// 关键字搜索（title/artist/album 任一 LIKE %keyword%），SQL 端分页。
+    ///
+    /// 返回 `(本页结果, 匹配总数)`。LIMIT/OFFSET 在 SQL 中执行，避免
+    /// 把全部匹配项载入内存后再用 Rust 端 skip/take 分页。
+    fn search_db(&self, keyword: &str, page: u32, page_size: u32) -> Result<(Vec<Song>, u64)> {
         let conn = self.db.lock().map_err(|e| CoreError::Source(e.to_string()))?;
         let like = format!("%{}%", keyword);
+        // 总数：COUNT(*) 单独查询，保证 total 与分页结果独立
+        let total: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM local_tracks \
+                 WHERE title LIKE ?1 OR artist LIKE ?1 OR album LIKE ?1",
+                params![&like],
+                |row| row.get::<_, i64>(0).map(|v| v.max(0) as u64),
+            )
+            .map_err(|e| CoreError::Source(e.to_string()))?;
+        // 分页：page 至少为 1，page_size 至少为 1。LIMIT/OFFSET 均以 i64 绑定。
+        let page = page.max(1);
+        let page_size = (page_size as i64).max(1);
+        let offset = ((page - 1) as i64).saturating_mul(page_size);
         let mut stmt = conn
             .prepare(
                 "SELECT id,path,title,artist,album,cover,duration_ms FROM local_tracks \
                  WHERE title LIKE ?1 OR artist LIKE ?1 OR album LIKE ?1 \
-                 ORDER BY title",
+                 ORDER BY title LIMIT ?2 OFFSET ?3",
             )
             .map_err(|e| CoreError::Source(e.to_string()))?;
-        let songs = stmt
-            .query_map(params![&like], row_to_song)
+        let songs: Vec<Song> = stmt
+            .query_map(params![&like, page_size, offset], row_to_song)
             .map_err(|e| CoreError::Source(e.to_string()))?
             .filter_map(|r| r.ok())
             .collect();
-        Ok(songs)
+        Ok((songs, total))
     }
 }
 
@@ -375,12 +407,10 @@ impl Source for LocalSource {
     }
 
     async fn search(&self, keyword: &str, page: u32, page_size: u32) -> Result<SearchResult> {
-        let all = self.search_db(keyword)?;
-        let total = all.len() as u64;
+        // 由 search_db 在 SQL 端完成 LIMIT/OFFSET 分页与 COUNT(*) 总数查询
         let page = page.max(1);
-        let page_size = (page_size as usize).max(1);
-        let offset = ((page - 1) as usize) * page_size;
-        let songs: Vec<Song> = all.into_iter().skip(offset).take(page_size).collect();
+        let (songs, total) = self.search_db(keyword, page, page_size)?;
+        let page_size_out = (page_size as usize).max(1) as u32;
         Ok(SearchResult {
             keyword: keyword.to_string(),
             songs,
@@ -388,7 +418,7 @@ impl Source for LocalSource {
             artists: Vec::new(),
             total,
             page,
-            page_size: page_size as u32,
+            page_size: page_size_out,
         })
     }
 
@@ -558,7 +588,8 @@ fn parse_file_metadata(path: &Path) -> ParsedTrack {
 fn upsert_track_path(conn: &Connection, path: &Path) -> Result<()> {
     let parsed = parse_file_metadata(path);
     let mtime = file_mtime_secs(path).unwrap_or(0) as i64;
-    let artist_joined = parsed.artists.join(" / ");
+    // 使用 ARTIST_SEPARATOR（\u{0001}）拼接，避免艺术家名含 " / " 时往返损坏
+    let artist_joined = parsed.artists.join(ARTIST_SEPARATOR);
     let path_str = path.to_string_lossy().to_string();
 
     conn.execute(
@@ -610,7 +641,8 @@ fn query_all(conn: &Connection) -> Result<Vec<Song>> {
 ///
 /// - `source_id` 固定为 `"local"`。
 /// - `cover_url` 设为 None（本地封面走 BLOB，不在 URL）。
-/// - `artist` 以 `" / "` 连接，读取时 split 回列表。
+/// - `artist` 以 [`ARTIST_SEPARATOR`] 拼接，读取时切分回列表；旧数据使用
+///   `" / "` 分隔，回退兼容读取。
 /// - `local_path` 设为该路径，`origin` 为 `SongOrigin::Local { path }`。
 fn row_to_song(row: &rusqlite::Row) -> rusqlite::Result<Song> {
     let id: String = row.get(0)?;
@@ -623,7 +655,14 @@ fn row_to_song(row: &rusqlite::Row) -> rusqlite::Result<Song> {
 
     let artists: Vec<String> = if artist.is_empty() {
         vec!["Unknown Artist".to_string()]
+    } else if artist.contains(ARTIST_SEPARATOR) {
+        // 新格式：按 ASCII SOH 切分
+        artist
+            .split(ARTIST_SEPARATOR)
+            .map(|s| s.to_string())
+            .collect()
     } else {
+        // 旧格式回退：兼容已存在的 `" / "` 分隔数据
         artist.split(" / ").map(|s| s.to_string()).collect()
     };
 

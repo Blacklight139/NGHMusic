@@ -401,6 +401,9 @@ impl Library {
     pub fn save_play_state(&self, state: &PlayState) -> Result<()> {
         let conn = self.db.lock().map_err(|e| CoreError::Source(e.to_string()))?;
         let mode_str = mode_to_str(&state.mode);
+        // u64 → i64 转换前饱和到 i64::MAX，避免超过 i64 范围时产生未定义的回绕值
+        let position_ms_i64 = state.position_ms.min(i64::MAX as u64) as i64;
+        let duration_ms_i64 = state.duration_ms.min(i64::MAX as u64) as i64;
         conn.execute(
             "INSERT OR REPLACE INTO play_state \
              (id, current_song_id, playlist_id, position, position_ms, duration_ms, is_playing, volume, mode) \
@@ -409,8 +412,8 @@ impl Library {
                 state.current_song_id,
                 state.playlist_id,
                 state.index.map(|i| i as i64),
-                state.position_ms as i64,
-                state.duration_ms as i64,
+                position_ms_i64,
+                duration_ms_i64,
                 state.is_playing as i64,
                 state.volume as f64,
                 mode_str,
@@ -453,8 +456,9 @@ impl Library {
             current_song_id,
             playlist_id,
             index: position.map(|p| p as usize),
-            position_ms: position_ms as u64,
-            duration_ms: duration_ms as u64,
+            // i64 → u64 转换前将负值夹到 0，避免回绕成巨大无意义值
+            position_ms: position_ms.max(0) as u64,
+            duration_ms: duration_ms.max(0) as u64,
             is_playing: is_playing != 0,
             volume: volume as f32,
             mode: str_to_mode(&mode)?,

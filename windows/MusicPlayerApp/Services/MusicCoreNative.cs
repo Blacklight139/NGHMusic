@@ -21,105 +21,129 @@ public static class MusicCoreNative
     // 原生导入（与 core/src/ffi.rs 的 #[no_mangle] 符号一一对应）
     // =============================================================
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_version();
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern void music_core_free_string(IntPtr ptr);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_source_import(IntPtr json);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_source_validate(IntPtr json);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_source_list();
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_source_enable(IntPtr id);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_source_disable(IntPtr id);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_source_delete(IntPtr id);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_search(IntPtr keyword, uint page, uint pageSize);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_get_metadata(IntPtr sourceId, IntPtr songId);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_get_play_url(IntPtr sourceId, IntPtr songId);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_get_lyric(IntPtr sourceId, IntPtr songId);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_get_leaderboards(IntPtr sourceId);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_feiniu_login(IntPtr baseUrl, IntPtr username, IntPtr password);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_feiniu_list_files(IntPtr path);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_feiniu_stream(IntPtr path);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_feiniu_health();
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_protocol_add(IntPtr configJson);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_protocol_list();
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_protocol_delete(IntPtr id);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_protocol_list_files(IntPtr id, IntPtr path);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_protocol_read(IntPtr id, IntPtr path);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_protocol_stream(IntPtr id, IntPtr path);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_local_init(IntPtr dbPath);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_local_add_dir(IntPtr dir);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_local_rescan();
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_local_progress();
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_cache_init(IntPtr cacheDir, ulong maxBytes);
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_cache_stats();
 
-    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi, ExactSpelling = true)]
+    [DllImport(LibName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr music_core_cache_clear();
 
     // =============================================================
     // 私有辅助
     // =============================================================
 
-    /// <summary>分配 ANSI C 字符串；null 返回 <see cref="IntPtr.Zero"/>。</summary>
-    private static IntPtr AllocCString(string? s) =>
-        s is null ? IntPtr.Zero : Marshal.StringToHGlobalAnsi(s);
+    /// <summary>
+    /// 分配 UTF-8 编码的 C 字符串（与 Rust <c>CString</c> 一致）；null 返回 <see cref="IntPtr.Zero"/>。
+    /// 使用 UTF-8 而非 ANSI 代码页，避免中文等多字节字符在跨 FFI 传递时乱码。
+    /// 返回的内存由 <see cref="Marshal.AllocHGlobal"/> 分配，调用方须用
+    /// <see cref="Marshal.FreeHGlobal"/> 释放。
+    /// </summary>
+    private static IntPtr AllocCString(string? s)
+    {
+        if (s is null)
+        {
+            return IntPtr.Zero;
+        }
+        var bytes = System.Text.Encoding.UTF8.GetBytes(s);
+        // 额外分配 1 字节用于 NUL 终止符，符合 C 字符串约定。
+        var ptr = Marshal.AllocHGlobal(bytes.Length + 1);
+        try
+        {
+            Marshal.Copy(bytes, 0, ptr, bytes.Length);
+            Marshal.WriteByte(ptr, bytes.Length, 0);
+            return ptr;
+        }
+        catch
+        {
+            Marshal.FreeHGlobal(ptr);
+            throw;
+        }
+    }
 
-    /// <summary>读取核心返回的 C 字符串并立即释放其内存。</summary>
+    /// <summary>读取核心返回的 UTF-8 C 字符串并立即释放其内存。</summary>
     private static string? ReadAndFree(IntPtr ptr)
     {
         if (ptr == IntPtr.Zero)
@@ -128,7 +152,8 @@ public static class MusicCoreNative
         }
         try
         {
-            return Marshal.PtrToStringAnsi(ptr);
+            // Rust CString 使用 UTF-8；PtrToStringUTF8 按 NUL 终止符读取并正确解码多字节字符。
+            return Marshal.PtrToStringUTF8(ptr);
         }
         finally
         {

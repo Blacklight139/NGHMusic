@@ -19,6 +19,7 @@ use music_core::models::*;
 use crate::core_service::CoreService;
 use crate::player_service::PlayerService;
 use crate::theme;
+use crate::utils::{format_artists, format_duration};
 
 /// 搜索页内部状态。
 struct SearchState {
@@ -310,22 +311,4 @@ fn create_song_row(song: &Song, index: usize, is_playing: bool) -> gtk4::ListBox
     row.set_focusable(false);
     row.set_activatable(true);
     row
-}
-
-/// 格式化艺术家列表为「A / B / C」形式。
-fn format_artists(artists: &[String]) -> String {
-    artists.join(" / ")
-}
-
-/// 将毫秒时长格式化为 `mm:ss`。
-fn format_duration(duration_ms: Option<u64>) -> String {
-    match duration_ms {
-        Some(ms) => {
-            let total_secs = ms / 1000;
-            let mins = total_secs / 60;
-            let secs = total_secs % 60;
-            format!("{mins:02}:{secs:02}")
-        }
-        None => "--:--".to_string(),
-    }
 }

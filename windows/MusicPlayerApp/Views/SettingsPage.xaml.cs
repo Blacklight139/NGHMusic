@@ -160,23 +160,21 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        // 注入 protocol 字段（若用户未填）
+        // 注入 protocol 字段（若用户未填），使用结构化 JSON 操作避免字符串拼接导致的注入风险。
         string finalJson;
         try
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(configText);
-            var root = doc.RootElement;
-            if (root.ValueKind == System.Text.Json.JsonValueKind.Object &&
-                root.TryGetProperty("protocol", out _))
+            var node = System.Text.Json.Nodes.JsonNode.Parse(configText);
+            if (node is not System.Text.Json.Nodes.JsonObject obj)
             {
-                finalJson = configText;
+                await ShowErrorAsync("配置 JSON 必须是对象");
+                return;
             }
-            else
+            if (!obj.ContainsKey("protocol"))
             {
-                // 简单包装注入 protocol 字段
-                finalJson = configText.TrimStart('{').TrimEnd('}');
-                finalJson = $"{{\"protocol\":\"{protocol}\",{finalJson}";
+                obj["protocol"] = protocol;
             }
+            finalJson = obj.ToJsonString();
         }
         catch (Exception ex)
         {

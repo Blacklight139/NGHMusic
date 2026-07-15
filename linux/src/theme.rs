@@ -90,8 +90,9 @@ pub const SPACING_S8: i32 = 40;
 // 辅助函数
 // ===========================================================================
 
-/// CSS 主题文件相对于包根目录的路径。
-const CSS_PATH: &str = "resources/style.css";
+/// CSS 主题内容：编译时通过 `include_str!` 嵌入二进制，
+/// 避免运行时依赖工作目录的相对路径（`resources/style.css`）。
+const CSS_CONTENT: &str = include_str!("../resources/style.css");
 
 /// 由十六进制颜色字符串构造不透明的 `gdk::RGBA`。
 ///
@@ -134,9 +135,9 @@ pub fn rgba_from_hex_alpha(hex: &str, alpha: f32) -> gdk::RGBA {
 
 /// 加载「豆包风格」CSS 主题到指定的 [`CssProvider`]。
 ///
-/// 从 `resources/style.css` 读取主题样式（其中通过 `@define-color`
-/// 定义 CSS 变量），并加载到传入的 `provider` 中。调用方负责将该
-/// provider 添加到目标 `gdk::Display`，例如：
+/// CSS 内容在编译时已通过 `include_str!` 嵌入二进制（[`CSS_CONTENT`]），
+/// 不依赖运行时工作目录。其中通过 `@define-color` 定义 CSS 变量。
+/// 调用方负责将该 provider 添加到目标 `gdk::Display`，例如：
 ///
 /// ```ignore
 /// use gtk4::{gdk, CssProvider, StyleContext};
@@ -152,11 +153,9 @@ pub fn rgba_from_hex_alpha(hex: &str, alpha: f32) -> gdk::RGBA {
 /// }
 /// ```
 ///
-/// 若读取或解析失败，会通过 `log` 记录警告但不返回错误，以保证
-/// 应用即便缺少主题文件也能继续启动。
+/// 若解析失败，会通过 `log` 记录警告但不返回错误，以保证
+/// 应用即便缺少主题样式也能继续启动。
 pub fn apply_theme(provider: &CssProvider) {
-    match provider.load_from_path(CSS_PATH) {
-        Ok(()) => log::info!("已加载主题 CSS：{CSS_PATH}"),
-        Err(e) => log::warn!("加载主题 CSS 失败（{CSS_PATH}）：{e}"),
-    }
+    provider.load_from_data(CSS_CONTENT);
+    log::info!("已加载内嵌主题 CSS");
 }

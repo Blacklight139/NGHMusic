@@ -75,7 +75,9 @@ fun LyricsScreen(player: PlayerManager = viewModel()) {
     val currentIndex = remember(state.position, lines) {
         var idx = 0
         lines.forEachIndexed { i, line ->
-            if ((line.timeMs ?: 0) <= state.position) idx = i
+            // 7.4 跳过 timeMs 为 null 的纯文本行，避免其被当作时间戳 0 而误判为当前行。
+            val timeMs = line.timeMs ?: return@forEachIndexed
+            if (timeMs <= state.position) idx = i
         }
         idx
     }

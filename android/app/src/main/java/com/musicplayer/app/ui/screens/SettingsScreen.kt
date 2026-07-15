@@ -27,7 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import com.musicplayer.app.models.SourceInfo
 import com.musicplayer.app.player.PlayerManager
 import com.musicplayer.app.repository.MusicRepository
@@ -43,6 +47,8 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
     var sources by remember { mutableStateOf<List<SourceInfo>>(emptyList()) }
     var expandedId by remember { mutableStateOf<String?>(null) }
     var pendingDelete by remember { mutableStateOf<SourceInfo?>(null) }
+    // 5.4 串行化音源操作（启用/排序/删除/导入），避免并发修改导致列表与核心状态不一致。
+    val sourceMutex = remember { Mutex() }
 
     // 文件选择：接收 application/json URI -> 读取流 -> 导入 -> 刷新
     val pickJsonLauncher = rememberLauncherForActivityResult(
@@ -50,20 +56,26 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
     ) { uri ->
         if (uri != null) {
             scope.launch {
-                val json = runCatching {
-                    context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                }.getOrNull()
+                // 6.4 文件 I/O 切到 Dispatchers.IO，避免阻塞主线程。
+                val json = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                    }.getOrNull()
+                }
                 if (json.isNullOrBlank()) {
                     snackbarHostState.showSnackbar("无法读取文件或内容为空")
                 } else {
-                    runCatching { MusicRepository.importSourceFromJson(json) }
-                        .onSuccess { info ->
-                            sources = MusicRepository.listSourcesOrdered()
-                            snackbarHostState.showSnackbar("音源导入成功：${info.name}")
-                        }
-                        .onFailure {
-                            snackbarHostState.showSnackbar("导入失败：${it.message ?: "未知错误"}")
-                        }
+                    // 5.4 串行化导入操作，避免与其他音源操作并发。
+                    sourceMutex.withLock {
+                        runCatching { MusicRepository.importSourceFromJson(json) }
+                            .onSuccess { info ->
+                                sources = MusicRepository.listSourcesOrdered()
+                                snackbarHostState.showSnackbar("音源导入成功：${info.name}")
+                            }
+                            .onFailure {
+                                snackbarHostState.showSnackbar("导入失败：${it.message ?: "未知错误"}")
+                            }
+                    }
                 }
             }
         }
@@ -109,8 +121,11 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                 onImportClick = { pickJsonLauncher.launch("application/json") },
                 onToggleEnabled = { id, enabled ->
                     scope.launch {
-                        MusicRepository.setSourceEnabled(id, enabled)
-                        sources = MusicRepository.listSourcesOrdered()
+                        // 5.4 串行化音源操作。
+                        sourceMutex.withLock {
+                            MusicRepository.setSourceEnabled(id, enabled)
+                            sources = MusicRepository.listSourcesOrdered()
+                        }
                     }
                 },
                 onMoveUp = { index ->
@@ -118,8 +133,11 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                         val ordered = sources.toMutableList()
                         java.util.Collections.swap(ordered, index, index - 1)
                         scope.launch {
-                            MusicRepository.reorderSources(ordered.map { it.id })
-                            sources = MusicRepository.listSourcesOrdered()
+                            // 5.4 串行化音源操作。
+                            sourceMutex.withLock {
+                                MusicRepository.reorderSources(ordered.map { it.id })
+                                sources = MusicRepository.listSourcesOrdered()
+                            }
                         }
                     }
                 },
@@ -128,8 +146,11 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                         val ordered = sources.toMutableList()
                         java.util.Collections.swap(ordered, index, index + 1)
                         scope.launch {
-                            MusicRepository.reorderSources(ordered.map { it.id })
-                            sources = MusicRepository.listSourcesOrdered()
+                            // 5.4 串行化音源操作。
+                            sourceMutex.withLock {
+                                MusicRepository.reorderSources(ordered.map { it.id })
+                                sources = MusicRepository.listSourcesOrdered()
+                            }
                         }
                     }
                 },
@@ -159,9 +180,16 @@ fun SettingsScreen(player: PlayerManager = viewModel()) {
                     val t = target
                     pendingDelete = null
                     scope.launch {
-                        MusicRepository.deleteSource(t.id)
-                        sources = MusicRepository.listSourcesOrdered()
-                        snackbarHostState.showSnackbar("已删除「${t.name}」")
+                        // 5.4 串行化删除操作；6.3 失败时通过 snackbar 提示而非崩溃。
+                        sourceMutex.withLock {
+                            try {
+                                MusicRepository.deleteSource(t.id)
+                                sources = MusicRepository.listSourcesOrdered()
+                                snackbarHostState.showSnackbar("已删除「${t.name}」")
+                            } catch (e: Exception) {
+                                snackbarHostState.showSnackbar("删除失败：${e.message ?: "未知错误"}")
+                            }
+                        }
                     }
                 }) { Text("删除", color = Danger) }
             },

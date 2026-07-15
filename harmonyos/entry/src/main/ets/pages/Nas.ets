@@ -177,10 +177,10 @@ export struct NasPage {
     return $r('sys.symbol.questionmark_circle');
   }
 
-  private checkHealth(): void {
+  private async checkHealth(): Promise<void> {
     this.healthText = '检测中…';
     this.healthOk = -1;
-    this.retrySync(() => MusicCoreBridge.feiniuHealth(), (raw: string) => {
+    await this.retryAsync(() => MusicCoreBridge.feiniuHealth(), (raw: string) => {
       try {
         const obj = JSON.parse(raw) as Record<string, Object>;
         const ok = Boolean(obj['healthy']);
@@ -198,7 +198,7 @@ export struct NasPage {
     });
   }
 
-  private login(): void {
+  private async login(): Promise<void> {
     const b = this.baseUrl.trim();
     const u = this.username.trim();
     if (b.length === 0 || u.length === 0) {
@@ -212,8 +212,8 @@ export struct NasPage {
         this.showToast('登录失败：核心未链接');
       } else {
         this.feiniuPath = '/';
-        this.refreshFeiniuFiles();
         this.showToast('登录成功');
+        await this.refreshFeiniuFiles();
       }
     } catch (e) {
       const msg = (e as Error)?.message ?? String(e);
@@ -227,10 +227,10 @@ export struct NasPage {
     }
   }
 
-  private refreshFeiniuFiles(): void {
+  private async refreshFeiniuFiles(): Promise<void> {
     this.feiniuLoading = true;
     this.feiniuFiles = [];
-    this.retrySync(() => MusicCoreBridge.feiniuListFiles(this.feiniuPath), (raw: string) => {
+    await this.retryAsync(() => MusicCoreBridge.feiniuListFiles(this.feiniuPath), (raw: string) => {
       try {
         const obj = JSON.parse(raw) as Record<string, Object>;
         const files = (obj['files'] ?? []) as NasFile[];
@@ -247,16 +247,16 @@ export struct NasPage {
     this.feiniuLoading = false;
   }
 
-  private handleFeiniuTap(f: NasFile): void {
+  private async handleFeiniuTap(f: NasFile): Promise<void> {
     if (f.is_dir) {
       this.feiniuPath = this.joinPath(this.feiniuPath, f.name, true);
-      this.refreshFeiniuFiles();
+      await this.refreshFeiniuFiles();
       return;
     }
     if (!this.isAudio(f.name)) return;
     this.feiniuLoading = true;
     const full = this.joinPath(this.feiniuPath, f.name, false);
-    this.retrySync(() => MusicCoreBridge.feiniuStream(full), (raw: string) => {
+    await this.retryAsync(() => MusicCoreBridge.feiniuStream(full), (raw: string) => {
       try {
         const obj = JSON.parse(raw) as Record<string, Object>;
         const url = String(obj['url'] ?? '');
@@ -405,11 +405,11 @@ export struct NasPage {
     }
   }
 
-  private refreshProtocolEntries(): void {
+  private async refreshProtocolEntries(): Promise<void> {
     if (this.selectedSourceId.length === 0) return;
     this.protocolLoading = true;
     this.protocolEntries = [];
-    this.retrySync(() => MusicCoreBridge.protocolListFiles(this.selectedSourceId, this.protocolPath), (raw: string) => {
+    await this.retryAsync(() => MusicCoreBridge.protocolListFiles(this.selectedSourceId, this.protocolPath), (raw: string) => {
       try {
         const obj = JSON.parse(raw) as Record<string, Object>;
         const entries = (obj['entries'] ?? []) as string[];
@@ -428,16 +428,16 @@ export struct NasPage {
     this.protocolLoading = false;
   }
 
-  private handleProtocolTap(name: string, isDir: boolean): void {
+  private async handleProtocolTap(name: string, isDir: boolean): Promise<void> {
     if (isDir) {
       this.protocolPath = this.joinPath(this.protocolPath, name, true);
-      this.refreshProtocolEntries();
+      await this.refreshProtocolEntries();
       return;
     }
     if (!this.isAudio(name)) return;
     this.protocolLoading = true;
     const full = this.joinPath(this.protocolPath, name, false);
-    this.retrySync(() => MusicCoreBridge.protocolStream(this.selectedSourceId, full), (raw: string) => {
+    await this.retryAsync(() => MusicCoreBridge.protocolStream(this.selectedSourceId, full), (raw: string) => {
       try {
         const obj = JSON.parse(raw) as Record<string, Object>;
         const url = String(obj['url'] ?? '');
@@ -507,14 +507,14 @@ export struct NasPage {
 
   /**
    * 对 502/504 类网络错误做指数退避重试（1s/2s/4s，最多 3 次）。
-   * 注意：HarmonyOS 桥接为同步调用，本方法在 502/504 时同步等待（scaffold 阶段）；
-   * 真正异步化需 NAPI Promise 化。401/404/501 不重试，直接进入 onError。
+   * 使用 Promise + setTimeout 异步等待，不阻塞 UI 线程。401/404/501 不重试，
+   * 直接进入 onError。
    */
-  private retrySync(
+  private async retryAsync(
     fn: () => string | null,
     onSuccess: (raw: string) => void,
     onError: (e: Error) => void
-  ): void {
+  ): Promise<void> {
     const delays = [1000, 2000, 4000];
     let last: Error | null = null;
     for (let attempt = 0; attempt <= 3; attempt++) {
@@ -529,9 +529,7 @@ export struct NasPage {
         if (this.isRetryableErrorJson(raw)) {
           last = new Error(this.extractErrorMessage(raw));
           if (attempt === 3) break;
-          // 同步等待（scaffold 阶段；真实环境应异步）
-          const start = Date.now();
-          while (Date.now() - start < delays[attempt]) { /* busy wait */ }
+          await this.sleep(delays[attempt]);
           continue;
         }
         onSuccess(raw);
@@ -539,12 +537,16 @@ export struct NasPage {
       } catch (e) {
         last = e as Error;
         if (!this.isRetryable(last) || attempt === 3) break;
-        const start = Date.now();
-        while (Date.now() - start < delays[attempt]) { /* busy wait */ }
+        await this.sleep(delays[attempt]);
       }
     }
     if (last) onError(last);
     else onSuccess('null');
+  }
+
+  /** 异步等待指定毫秒数，基于 setTimeout 不阻塞 UI 线程。 */
+  private sleep(ms: number): Promise<void> {
+    return new Promise<void>((resolve: () => void) => setTimeout(resolve, ms));
   }
 
   private isRetryable(e: Error): boolean {

@@ -20,6 +20,7 @@ use music_core::models::*;
 
 use crate::player_service::PlayerService;
 use crate::theme;
+use crate::utils::format_artists;
 
 /// 轮询间隔。
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
@@ -226,7 +227,7 @@ pub fn create_playback_bar(player: Arc<PlayerService>) -> gtk4::Widget {
         let volume_scale = volume_scale.clone();
         let volume_icon = volume_icon.clone();
 
-        glib::timeout_add_local(POLL_INTERVAL, move || {
+        let source_id = glib::timeout_add_local(POLL_INTERVAL, move || {
             // 更新歌曲信息
             match player.current_song() {
                 Some(song) => {
@@ -284,6 +285,10 @@ pub fn create_playback_bar(player: Arc<PlayerService>) -> gtk4::Widget {
 
             glib::ControlFlow::Continue
         });
+        // 组件销毁时移除定时器，避免泄漏与对已销毁组件的访问
+        bar.connect_destroy(move |_| {
+            source_id.remove();
+        });
     }
 
     bar.upcast::<Widget>()
@@ -296,9 +301,4 @@ fn mode_icon_name(mode: &PlayMode) -> &'static str {
         PlayMode::SingleLoop => "media-playlist-repeat-song-symbolic",
         PlayMode::Random => "media-playlist-shuffle-symbolic",
     }
-}
-
-/// 格式化艺术家列表为「A / B / C」形式。
-fn format_artists(artists: &[String]) -> String {
-    artists.join(" / ")
 }

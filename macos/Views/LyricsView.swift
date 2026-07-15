@@ -9,6 +9,9 @@ struct LyricsView: View {
     @State private var lyric: Lyric?
     @State private var errorMessage: String?
     @State private var isLoading = false
+    /// 缓存的当前高亮行索引，在 onChange(of: currentTime) 中更新。
+    /// 避免渲染时每行都调用 activeLineIndex（O(n)）导致整体 O(n²)。
+    @State private var cachedActiveLineIndex: Int?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -59,9 +62,9 @@ struct LyricsView: View {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(lyric.lines.enumerated()), id: \.offset) { idx, line in
                         Text(line.text)
-                            .font(isActiveLine(idx, line, lyric) ? .title3 : .body)
-                            .fontWeight(isActiveLine(idx, line, lyric) ? .semibold : .regular)
-                            .foregroundColor(isActiveLine(idx, line, lyric) ? Color.nghPrimary : Color.nghTextSecondary)
+                            .font(isActiveLine(idx, line) ? .title3 : .body)
+                            .fontWeight(isActiveLine(idx, line) ? .semibold : .regular)
+                            .foregroundColor(isActiveLine(idx, line) ? Color.nghPrimary : Color.nghTextSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 2)
                             .id(idx)
@@ -71,7 +74,10 @@ struct LyricsView: View {
                 .padding(.vertical, NghSpacing.s4)
             }
             .onChange(of: player.currentTime) { newTime in
-                if let idx = activeLineIndex(lyric, timeMs: UInt64(newTime * 1000)) {
+                // 在此计算一次并缓存，渲染时直接比较，避免 O(n²)。
+                let idx = activeLineIndex(lyric, timeMs: UInt64(newTime * 1000))
+                cachedActiveLineIndex = idx
+                if let idx = idx {
                     withAnimation { proxy.scrollTo(idx, anchor: .center) }
                 }
             }
@@ -124,15 +130,20 @@ struct LyricsView: View {
         guard let song = player.currentSong else {
             lyric = nil
             errorMessage = nil
+            cachedActiveLineIndex = nil
             return
         }
         isLoading = true
         errorMessage = nil
+        // 切歌时重置缓存，避免旧歌词的高亮索引错位应用到新歌词
+        cachedActiveLineIndex = nil
         Task {
             do {
                 let l = try await CoreService.shared.getLyric(sourceId: song.sourceId, songId: song.id)
                 await MainActor.run {
                     self.lyric = l
+                    // 立即根据当前播放时间初始化高亮行，避免首次渲染到下一次 currentTime tick 之间无高亮
+                    self.cachedActiveLineIndex = self.activeLineIndex(l, timeMs: UInt64(self.player.currentTime * 1000))
                     self.isLoading = false
                 }
             } catch {
@@ -154,9 +165,9 @@ struct LyricsView: View {
         return idx
     }
 
-    private func isActiveLine(_ idx: Int, _ line: LyricLine, _ lyric: Lyric) -> Bool {
+    private func isActiveLine(_ idx: Int, _ line: LyricLine) -> Bool {
         guard line.timeMs != nil else { return false }
-        return activeLineIndex(lyric, timeMs: UInt64(player.currentTime * 1000)) == idx
+        return cachedActiveLineIndex == idx
     }
 }
 

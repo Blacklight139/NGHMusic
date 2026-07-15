@@ -25,7 +25,12 @@ public final class PlayerService: ObservableObject {
     @Published public var volume: Float = 1.0 {
         didSet {
             player.volume = volume
-            persistState()
+            // 防抖：拖动音量滑块时会触发大量 didSet，避免每次都写盘。
+            // 取消上一次待执行的写盘任务，重新调度 0.5s 后执行。
+            volumeDebounceWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.persistState() }
+            volumeDebounceWorkItem = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
         }
     }
     /// 播放模式。
@@ -55,6 +60,8 @@ public final class PlayerService: ObservableObject {
     private let persistQueue = DispatchQueue(label: "com.nghmusic.macos.persist", qos: .utility)
     /// 时间观察者持久化的节流时间戳，避免每 0.5s 都写盘。
     private var lastPersistTime: Date = .distantPast
+    /// 音量变更持久化的防抖工作项，避免拖动音量时频繁写盘。
+    private var volumeDebounceWorkItem: DispatchWorkItem?
 
     // MARK: - 初始化
 
@@ -110,7 +117,13 @@ public final class PlayerService: ObservableObject {
         currentIndex = index
         let song = queue[index]
         currentSong = song
-        load(song: song)
+        // 仅当 load 成功时才真正开始播放并置 isPlaying = true，
+        // 避免 load 静默失败（如 URL 解析失败）后仍标记为播放中。
+        guard load(song: song) else {
+            isPlaying = false
+            persistState()
+            return
+        }
         player.play()
         isPlaying = true
         persistState()
@@ -193,10 +206,11 @@ public final class PlayerService: ObservableObject {
 
     // MARK: - 私有实现
 
-    private func load(song: Song) {
+    @discardableResult
+    private func load(song: Song) -> Bool {
         guard let urlString = effectivePlayUrl(for: song), let url = URL(string: urlString) else {
             logger.error("无法解析歌曲可播放 URL: \(song.title, privacy: .public)")
-            return
+            return false
         }
         // 释放旧 item 的 KVO
         statusObserver?.invalidate()
@@ -216,6 +230,7 @@ public final class PlayerService: ObservableObject {
             }
         }
         duration = song.durationMs.map { Double($0) / 1000.0 } ?? 0
+        return true
     }
 
     /// 解析歌曲的最终可播放 URL：
@@ -295,7 +310,11 @@ public final class PlayerService: ObservableObject {
         volume = state.volume
         player.volume = state.volume
         mode = state.mode
-        // currentSong / queue 在重新加载歌曲前不恢复，仅恢复音量与模式
+        // 完整恢复（currentSongId / index / positionMs / durationMs）当前未实现：
+        // 1) 队列歌曲来自各音源，启动时无法保证对应音源已就绪或其 play_url 仍有效；
+        // 2) positionMs 恢复需要先异步加载 AVPlayerItem 再 seek，存在竞态且易阻塞启动；
+        // 3) 自动恢复 isPlaying 可能在应用启动时意外开始播放，影响用户体验。
+        // 因此仅恢复音量与播放模式；其余字段保留在持久化文件中以备后续扩展使用。
         logger.info("已恢复播放状态: volume=\(state.volume, privacy: .public), mode=\(state.mode.rawValue, privacy: .public)")
     }
 

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -64,7 +65,6 @@ import com.musicplayer.app.models.SongOrigin
 import com.musicplayer.app.player.PlayerManager
 import com.musicplayer.app.repository.MusicRepository
 import com.musicplayer.app.ui.theme.NghDimensions
-import com.musicplayer.app.ui.theme.nghClickableScale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -282,43 +282,49 @@ fun NasScreen(player: PlayerManager) {
                         Text("未列出文件，登录后刷新", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.padding(NghDimensions.spacing3))
                     } else {
-                        feiniuFiles.forEach { f ->
-                            NasFileRow(
-                                name = f.name ?: "",
-                                isDir = f.isDirValue,
-                                size = f.sizeValue,
-                                onClick = {
-                                    if (f.isDirValue) {
-                                        feiniuPath = joinPath(feiniuPath, f.name ?: "", true)
-                                        scope.launch {
-                                            refreshFeiniu(feiniuPath, { feiniuLoading = it }, { feiniuFiles = it }, { error = it })
-                                        }
-                                    } else if (isAudio(f.name ?: "")) {
-                                        scope.launch {
-                                            feiniuLoading = true
-                                            val full = joinPath(feiniuPath, f.name ?: "", false)
-                                            try {
-                                                val raw = retry { MusicRepository.feiniuStream(full) }
-                                                val url = nasGson.fromJsonSafe<StreamResp>(raw, StreamResp::class.java)?.url
-                                                if (url.isNullOrEmpty()) { error = "未获取到播放地址"; return@launch }
-                                                val song = Song(
-                                                    id = "feiniu-" + (f.name ?: ""),
-                                                    sourceId = "feiniu",
-                                                    title = f.name ?: "",
-                                                    artists = emptyList(),
-                                                    playUrl = url,
-                                                    origin = SongOrigin.Nas("feiniu", url)
-                                                )
-                                                player.play(song)
-                                                info = "开始播放：" + (f.name ?: "")
-                                            } catch (e: Exception) {
-                                                error = "获取播放地址失败：" + formatError(e)
+                        // 7.3 改用 LazyColumn + items()，提升长列表性能；因父级使用 verticalScroll，
+                        //     这里以 heightIn 限定最大高度，避免无限高度约束崩溃。
+                        LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
+                            items(feiniuFiles) { f ->
+                                NasFileRow(
+                                    name = f.name ?: "",
+                                    isDir = f.isDirValue,
+                                    size = f.sizeValue,
+                                    onClick = {
+                                        if (f.isDirValue) {
+                                            feiniuPath = joinPath(feiniuPath, f.name ?: "", true)
+                                            scope.launch {
+                                                refreshFeiniu(feiniuPath, { feiniuLoading = it }, { feiniuFiles = it }, { error = it })
                                             }
-                                            feiniuLoading = false
+                                        } else if (isAudio(f.name ?: "")) {
+                                            scope.launch {
+                                                feiniuLoading = true
+                                                val full = joinPath(feiniuPath, f.name ?: "", false)
+                                                try {
+                                                    val raw = retry { MusicRepository.feiniuStream(full) }
+                                                    val url = nasGson.fromJsonSafe<StreamResp>(raw, StreamResp::class.java)?.url
+                                                    if (url.isNullOrEmpty()) { error = "未获取到播放地址"; return@launch }
+                                                    val song = Song(
+                                                        id = "feiniu-" + (f.name ?: ""),
+                                                        sourceId = "feiniu",
+                                                        title = f.name ?: "",
+                                                        artists = emptyList(),
+                                                        playUrl = url,
+                                                        origin = SongOrigin.Nas("feiniu", url)
+                                                    )
+                                                    // 4.5 传入 queue = listOf(song)，使该曲成为播放队列，
+                                                    // 避免因队列为空导致切歌/单曲循环失效。
+                                                    player.play(song, queue = listOf(song))
+                                                    info = "开始播放：" + (f.name ?: "")
+                                                } catch (e: Exception) {
+                                                    error = "获取播放地址失败：" + formatError(e)
+                                                }
+                                                feiniuLoading = false
+                                            }
                                         }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
@@ -448,7 +454,8 @@ fun NasScreen(player: PlayerManager) {
                                                             playUrl = url,
                                                             origin = SongOrigin.Nas("protocol", url)
                                                         )
-                                                        player.play(song)
+                                                        // 4.5 传入 queue = listOf(song)，使该曲成为播放队列。
+                                                        player.play(song, queue = listOf(song))
                                                         info = "开始播放：$name"
                                                     } catch (e: Exception) {
                                                         error = "获取播放地址失败：" + formatError(e)
@@ -501,9 +508,11 @@ fun NasScreen(player: PlayerManager) {
 
 @Composable
 private fun NasFileRow(name: String, isDir: Boolean, size: Long, onClick: () -> Unit) {
+    // 7.6 移除 nghClickableScale 修饰符，避免与 Surface(onClick=...) 双重点击处理；
+    //     点击逻辑统一由 Surface 的 onClick 承担。
     Surface(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().nghClickableScale {},
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(NghDimensions.radiusMd)
     ) {
         Row(
@@ -706,7 +715,8 @@ private fun formatBytes(bytes: Long): String {
     var v = bytes.toDouble()
     var i = 0
     while (v >= 1024 && i < units.size - 1) { v /= 1024; i++ }
-    return String.format("%.2f %s", v, units[i])
+    // 7.7 使用 Locale.US，避免在德语等 locale 下输出逗号小数点导致解析异常。
+    return String.format(java.util.Locale.US, "%.2f %s", v, units[i])
 }
 
 private inline fun <reified T> Gson.fromJsonSafe(json: String?, clazz: Class<T>): T? {

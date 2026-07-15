@@ -125,14 +125,18 @@ impl SourceManager {
     pub fn add_source_with_info(&mut self, source: Arc<dyn Source>, info: SourceInfo) {
         self.entries.push(Entry { source, info });
         self.rebuild_ordered();
-        let _ = self.persist();
+        if let Err(e) = self.persist() {
+            log::error!("音源状态持久化失败（add_source_with_info）: {}", e);
+        }
     }
 
     /// 按 id 移除音源；不存在则无操作。（兼容旧调用方，不返回错误）
     pub fn remove_source(&mut self, id: &str) {
         self.entries.retain(|e| e.source.id() != id);
         self.rebuild_ordered();
-        let _ = self.persist();
+        if let Err(e) = self.persist() {
+            log::error!("音源状态持久化失败（remove_source）: {}", e);
+        }
     }
 
     /// 启用指定 id 的音源；不存在则无操作。

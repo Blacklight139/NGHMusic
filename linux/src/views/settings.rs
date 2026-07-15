@@ -8,6 +8,9 @@
 //! - 音源导入通过 `FileChooserDialog` 选择 `.json` 文件，读取后调用 `source_import`。
 //! - 缓存统计来自 `CoreService::cache_stats()`，支持手动刷新与清空。
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use gtk4::glib;
 use gtk4::prelude::*;
 use gtk4::*;
@@ -15,6 +18,7 @@ use music_core::sources::SourceInfo;
 
 use crate::core_service::{CoreService, ProtocolSourceInfo};
 use crate::theme;
+use crate::utils::{create_proto_row, format_size};
 
 /// 创建设置页组件。
 ///
@@ -93,10 +97,15 @@ fn build_source_section() -> Widget {
     let placeholder = Label::new(Some("暂无音源，点击「导入音源」加载 JSON 配置"));
     placeholder.add_css_class("ngh-empty-state");
 
+    // 使用 Rc<RefCell<Option<...>>> 打破循环依赖：refresh_sources 在构造每行时
+    // 需把自身克隆传给 create_source_row 的删除按钮，但此时闭包尚未构造完成。
+    let refresh_cell: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+
     // 刷新音源列表的闭包
-    let refresh_sources = {
+    let refresh_sources: Rc<dyn Fn()> = Rc::new({
         let listbox = listbox.clone();
         let placeholder = placeholder.clone();
+        let refresh_cell = Rc::clone(&refresh_cell);
         move || {
             let sources: Vec<SourceInfo> = CoreService::instance().source_list();
             while let Some(child) = listbox.first_child() {
@@ -106,13 +115,15 @@ fn build_source_section() -> Widget {
                 placeholder.set_visible(true);
             } else {
                 placeholder.set_visible(false);
+                let cb = refresh_cell.borrow().clone();
                 for source in sources {
-                    let row = create_source_row(&source);
+                    let row = create_source_row(&source, cb.clone());
                     listbox.append(&row);
                 }
             }
         }
-    };
+    });
+    *refresh_cell.borrow_mut() = Some(Rc::clone(&refresh_sources));
 
     refresh_sources();
 
@@ -223,7 +234,7 @@ fn build_protocol_section() -> Widget {
 
     // 点击协议源行删除
     {
-        let listbox = listbox.clone();
+        let listbox_clone = listbox.clone();
         let placeholder = placeholder.clone();
         listbox.connect_row_activated(move |_, row| {
             let idx = row.index();
@@ -235,8 +246,8 @@ fn build_protocol_section() -> Widget {
                 let id = proto.id.clone();
                 if CoreService::instance().protocol_delete(&id) {
                     let protos = CoreService::instance().protocol_list();
-                    while let Some(child) = listbox.first_child() {
-                        listbox.remove(&child);
+                    while let Some(child) = listbox_clone.first_child() {
+                        listbox_clone.remove(&child);
                     }
                     if protos.is_empty() {
                         placeholder.set_visible(true);
@@ -244,7 +255,7 @@ fn build_protocol_section() -> Widget {
                         placeholder.set_visible(false);
                         for proto in protos {
                             let row = create_proto_row(&proto);
-                            listbox.append(&row);
+                            listbox_clone.append(&row);
                         }
                     }
                 }
@@ -290,8 +301,8 @@ fn build_cache_section() -> Widget {
             stats_label.set_text(&format!(
                 "条目数：{}  已用：{}  上限：{}",
                 entries,
-                format_bytes(total),
-                format_bytes(max)
+                format_size(total),
+                format_size(max)
             ));
         }
     };
@@ -350,7 +361,10 @@ fn build_about_section() -> Widget {
 }
 
 /// 创建音源行（名称 + 类型标签 + 启停开关 + 删除按钮）。
-fn create_source_row(source: &SourceInfo) -> ListBoxRow {
+///
+/// # 参数
+/// - `on_changed`：删除音源后触发的刷新回调（重建音源列表）。
+fn create_source_row(source: &SourceInfo, on_changed: Option<Rc<dyn Fn()>>) -> ListBoxRow {
     let row_box = Box::new(Orientation::Horizontal, theme::SPACING_S3);
     row_box.add_css_class("ngh-song-row");
 
@@ -397,7 +411,7 @@ fn create_source_row(source: &SourceInfo) -> ListBoxRow {
         });
     }
 
-    // 删除按钮
+    // 删除按钮：删除成功后调用 on_changed 刷新音源列表
     let delete_button = Button::with_icon_name("edit-delete");
     delete_button.add_css_class("ngh-ghost-button");
     delete_button.set_tooltip_text(Some("删除该音源"));
@@ -405,7 +419,14 @@ fn create_source_row(source: &SourceInfo) -> ListBoxRow {
     {
         let id = source.id.clone();
         delete_button.connect_clicked(move |_| {
-            let _ = CoreService::instance().source_delete(&id);
+            match CoreService::instance().source_delete(&id) {
+                Ok(()) => {
+                    if let Some(cb) = &on_changed {
+                        cb();
+                    }
+                }
+                Err(e) => log::warn!("删除音源失败：{e}"),
+            }
         });
     }
 
@@ -418,62 +439,4 @@ fn create_source_row(source: &SourceInfo) -> ListBoxRow {
     row.set_focusable(false);
     row.set_activatable(false);
     row
-}
-
-/// 创建协议源行（协议类型 + 根路径 + 删除提示）。
-fn create_proto_row(proto: &ProtocolSourceInfo) -> ListBoxRow {
-    let row_box = Box::new(Orientation::Horizontal, theme::SPACING_S3);
-    row_box.add_css_class("ngh-song-row");
-
-    let icon = Image::from_icon_name("network-server");
-    icon.set_pixel_size(18);
-    icon.set_valign(Align::Center);
-
-    let info = Box::new(Orientation::Vertical, 2);
-    info.set_hexpand(true);
-    info.set_halign(Align::Start);
-    let proto_label = Label::new(Some(&format!(
-        "{}{}",
-        proto.protocol,
-        if proto.placeholder { "（占位）" } else { "" }
-    )));
-    proto_label.add_css_class("ngh-song-title");
-    proto_label.set_halign(Align::Start);
-    let root_label = Label::new(Some(&proto.root));
-    root_label.add_css_class("ngh-song-artist");
-    root_label.set_halign(Align::Start);
-    root_label.set_ellipsize(EllipsizeMode::End);
-    info.append(&proto_label);
-    info.append(&root_label);
-
-    let delete_icon = Image::from_icon_name("edit-delete");
-    delete_icon.set_pixel_size(16);
-    delete_icon.set_valign(Align::Center);
-
-    row_box.append(&icon);
-    row_box.append(&info);
-    row_box.append(&delete_icon);
-
-    let row = ListBoxRow::new();
-    row.set_child(Some(&row_box));
-    row.set_focusable(false);
-    row.set_activatable(true);
-    row.set_tooltip_text(Some("点击删除该协议源"));
-    row
-}
-
-/// 格式化字节数为人类可读字符串。
-fn format_bytes(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-    if bytes >= GB {
-        format!("{:.2} GB", bytes as f64 / GB as f64)
-    } else if bytes >= MB {
-        format!("{:.2} MB", bytes as f64 / MB as f64)
-    } else if bytes >= KB {
-        format!("{:.2} KB", bytes as f64 / KB as f64)
-    } else {
-        format!("{bytes} B")
-    }
 }

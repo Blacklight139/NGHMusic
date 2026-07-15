@@ -22,6 +22,7 @@ use music_core::models::*;
 use crate::core_service::CoreService;
 use crate::player_service::PlayerService;
 use crate::theme;
+use crate::utils::{format_artists, format_duration};
 
 /// 本地音乐页内部状态。
 struct LocalMusicState {
@@ -116,15 +117,16 @@ pub fn create_local_music_page(player: Arc<PlayerService>) -> gtk4::Widget {
         glib::MainContext::channel::<LocalMusicMessage>(glib::Priority::default());
 
     // --- 加载本地歌曲 ---
+    // 使用 local_list_songs 而非聚合 search("", ...)，仅返回本地音源已索引歌曲，
+    // 避免把远程音源结果混入本地音乐页。
     let load_songs = {
         let sender = sender.clone();
         move || {
             let sender = sender.clone();
             std::thread::spawn(move || {
                 let core = CoreService::instance();
-                let result = core.search("", 1, 200);
-                let message = match result {
-                    Ok(r) => LocalMusicMessage::Loaded(r.songs),
+                let message = match core.local_list_songs() {
+                    Ok(songs) => LocalMusicMessage::Loaded(songs),
                     Err(e) => LocalMusicMessage::Error(format!("{e}")),
                 };
                 let _ = sender.send(message);
@@ -260,7 +262,7 @@ pub fn create_local_music_page(player: Arc<PlayerService>) -> gtk4::Widget {
     // --- 进度轮询：每 500ms 更新扫描进度标签 ---
     {
         let progress_label = progress_label.clone();
-        glib::timeout_add_local(POLL_INTERVAL, move || {
+        let source_id = glib::timeout_add_local(POLL_INTERVAL, move || {
             let (count, scanning) = CoreService::instance().local_progress();
             if scanning {
                 progress_label.set_text(&format!("扫描中… 已索引 {count} 首"));
@@ -268,6 +270,10 @@ pub fn create_local_music_page(player: Arc<PlayerService>) -> gtk4::Widget {
                 progress_label.set_text(&format!("已索引 {count} 首"));
             }
             glib::ControlFlow::Continue
+        });
+        // 组件销毁时移除定时器，避免泄漏与对已销毁组件的访问
+        container.connect_destroy(move |_| {
+            source_id.remove();
         });
     }
 
@@ -359,22 +365,4 @@ fn create_song_row(song: &Song, index: usize, is_playing: bool) -> ListBoxRow {
 fn local_db_path() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
     base.join("nghmusic").join("local.db")
-}
-
-/// 格式化艺术家列表为「A / B / C」形式。
-fn format_artists(artists: &[String]) -> String {
-    artists.join(" / ")
-}
-
-/// 将毫秒时长格式化为 `mm:ss`。
-fn format_duration(duration_ms: Option<u64>) -> String {
-    match duration_ms {
-        Some(ms) => {
-            let total_secs = ms / 1000;
-            let mins = total_secs / 60;
-            let secs = total_secs % 60;
-            format!("{mins:02}:{secs:02}")
-        }
-        None => "--:--".to_string(),
-    }
 }

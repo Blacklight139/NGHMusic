@@ -57,8 +57,11 @@ struct LyricsView: View {
             .background(Color.nghBackground)
             .onChange(of: player.position) { newValue in
                 let ms = UInt64(newValue * 1000)
+                // IOS-012 修复：无时间戳行（timeMs == nil）跳过匹配，避免其因
+                // (timeMs ?? 0) <= ms 永远成立而错误抢占高亮。
                 let idx = lines.lastIndex { line in
-                    (line.timeMs ?? 0) <= ms
+                    guard let t = line.timeMs else { return false }
+                    return t <= ms
                 } ?? 0
                 if idx != currentIndex {
                     currentIndex = idx

@@ -66,7 +66,9 @@ pub struct CoreService {
     feiniu: Arc<Mutex<FeiniuClient>>,
     protocols: Arc<Mutex<HashMap<String, ProtocolEntry>>>,
     protocol_seq: Arc<Mutex<u64>>,
-    local: Arc<Mutex<Option<LocalSource>>>,
+    // 使用 Arc<LocalSource>：扫描时仅在锁内 clone Arc，释放锁后扫描，
+    // 使 local_progress 能并发查询进度而不被长时间阻塞。
+    local: Arc<Mutex<Option<Arc<LocalSource>>>>,
     cache: Arc<Mutex<Option<CacheManager>>>,
 }
 
@@ -258,8 +260,9 @@ impl CoreService {
         self.block_on(async { client.login(&user, &pass).await })?;
         let token = client.token.clone().unwrap_or_default();
         let base = base_url.to_string();
-        // 写回全局状态
-        if let Ok(mut g) = self.feiniu.lock() {
+        // 写回全局状态；锁中毒时返回错误而非静默吞错
+        {
+            let mut g = self.lock("飞牛客户端", &self.feiniu)?;
             *g = client;
         }
         Ok((token, base))
@@ -334,10 +337,16 @@ impl CoreService {
                     .or_else(|| value.get("host").and_then(|v| v.as_str()).map(String::from));
                 let host =
                     host.ok_or_else(|| CoreError::Protocol("FTP 缺少 host 字段".into()))?;
-                let port = value
+                let port_val = value
                     .get("port")
                     .and_then(|v| v.as_u64())
-                    .unwrap_or(21) as u16;
+                    .unwrap_or(21);
+                if port_val > 65535 {
+                    return Err(CoreError::Protocol(format!(
+                        "FTP 端口超出有效范围: {port_val}（最大 65535）"
+                    )));
+                }
+                let port = port_val as u16;
                 let username = opt_str("username").unwrap_or_default();
                 let password = opt_str("password").unwrap_or_default();
                 Arc::new(FtpClient::new(host, port, username, password))
@@ -456,26 +465,51 @@ impl CoreService {
     pub fn local_init(&self, db_path: &str) -> Result<()> {
         let local = LocalSource::new(db_path)?;
         let mut g = self.lock("本地音源", &self.local)?;
-        *g = Some(local);
+        *g = Some(Arc::new(local));
         Ok(())
     }
 
     /// 添加本地扫描目录并递归扫描入库。
+    ///
+    /// 仅在锁内 clone `Arc<LocalSource>`，立即释放锁后再扫描，
+    /// 使 [`Self::local_progress`] 能并发查询进度而不被长时间阻塞。
     pub fn local_add_dir(&self, dir: &str) -> Result<()> {
-        let g = self.lock("本地音源", &self.local)?;
-        let local = g
-            .as_ref()
-            .ok_or_else(|| CoreError::Ffi("本地音源未初始化，请先调用 local_init".into()))?;
+        let local = {
+            let g = self.lock("本地音源", &self.local)?;
+            g.as_ref()
+                .map(Arc::clone)
+                .ok_or_else(|| CoreError::Ffi("本地音源未初始化，请先调用 local_init".into()))?
+        };
+        // 锁已释放，扫描期间 local_progress 可并发查询
         local.add_directory(dir)
     }
 
     /// 重新扫描所有已添加目录（增量更新）。
+    ///
+    /// 与 [`Self::local_add_dir`] 同理：锁内 clone Arc 后释放锁再扫描。
     pub fn local_rescan(&self) -> Result<()> {
-        let g = self.lock("本地音源", &self.local)?;
-        let local = g
-            .as_ref()
-            .ok_or_else(|| CoreError::Ffi("本地音源未初始化，请先调用 local_init".into()))?;
+        let local = {
+            let g = self.lock("本地音源", &self.local)?;
+            g.as_ref()
+                .map(Arc::clone)
+                .ok_or_else(|| CoreError::Ffi("本地音源未初始化，请先调用 local_init".into()))?
+        };
+        // 锁已释放，扫描期间 local_progress 可并发查询
         local.rescan()
+    }
+
+    /// 列出本地音乐库中的全部歌曲（供 UI 浏览，非聚合搜索）。
+    ///
+    /// 直接调用 [`LocalSource::list_all`]，仅返回本地音源已索引的歌曲，
+    /// 避免使用聚合 `search("", ...)` 把远程音源结果混入本地音乐页。
+    pub fn local_list_songs(&self) -> Result<Vec<Song>> {
+        let local = {
+            let g = self.lock("本地音源", &self.local)?;
+            g.as_ref()
+                .map(Arc::clone)
+                .ok_or_else(|| CoreError::Ffi("本地音源未初始化，请先调用 local_init".into()))?
+        };
+        local.list_all()
     }
 
     /// 返回本地扫描进度 `(已索引数, 是否扫描中)`。

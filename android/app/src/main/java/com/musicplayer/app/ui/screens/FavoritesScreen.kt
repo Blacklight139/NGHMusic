@@ -77,7 +77,7 @@ fun FavoritesScreen(player: PlayerManager = viewModel()) {
             EmptyState("还没有收藏分组", "点击右上角创建", icon = Icons.Filled.FavoriteBorder)
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                itemsIndexed(groups) { _, g ->
+                itemsIndexed(groups, key = { _, item -> item.id }) { _, g ->
                     GroupRow(title = g.name, subtitle = "${g.songIds.size} 首") {
                         // 占位：接入收藏详情/播放后替换
                     }

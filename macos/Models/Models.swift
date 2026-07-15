@@ -411,7 +411,7 @@ public struct SourceImportResult: Codable, Hashable {
     public let config: SourceImportConfig?
 
     enum CodingKeys: String, CodingKey {
-        case sourceFormat = "sourceFormat"
+        case sourceFormat = "source_format"
         case warnings
         case config
     }
@@ -447,7 +447,7 @@ public struct NasFile: Codable, Identifiable, Hashable {
 
     enum CodingKeys: String, CodingKey {
         case name
-        case isDir
+        case isDir = "is_dir"
         case size
         case modified
     }

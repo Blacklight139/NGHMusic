@@ -98,6 +98,8 @@ struct LocalMusicView: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Spacer()
+                        // 已知限制：core 未提供 local_remove_dir 接口，移除目录无法同步到核心索引。
+                        // 为避免 UI 与核心状态不一致，按钮暂时禁用；如需移除目录，请重新初始化核心索引。
                         Button {
                             removeDirectory(dir)
                         } label: {
@@ -105,6 +107,8 @@ struct LocalMusicView: View {
                                 .foregroundColor(Color.nghDanger)
                         }
                         .buttonStyle(.plain)
+                        .disabled(true)
+                        .help("核心暂不支持移除已添加的扫描目录")
                     }
                     .padding(.horizontal, NghSpacing.s4)
                     .padding(.vertical, 4)
@@ -192,7 +196,10 @@ struct LocalMusicView: View {
     private func loadInitial() {
         Task {
             await refreshProgressAsync()
-            // 占位：实际歌曲列表需通过 search(sourceId="local") 获取
+            // 已知限制：core 未提供查询已添加扫描目录的接口，因此 scanDirs 无法从核心回填，
+            // 仅能反映本次会话内通过“添加目录”加入的路径。重启后扫描目录仍保留在核心索引中，
+            // 但 UI 列表会为空，直至用户再次添加目录。
+            // 实际歌曲列表需通过 search(sourceId="local") 获取。
         }
     }
 
@@ -217,7 +224,9 @@ struct LocalMusicView: View {
     }
 
     private func removeDirectory(_ url: URL) {
-        // 占位：core 未提供 local_remove_dir；仅从 UI 列表移除
+        // 已知限制：core 未提供 local_remove_dir 接口，无法从核心索引中移除已扫描目录。
+        // 此处仅从 UI 列表移除会导致 UI 与核心状态不一致，因此对应按钮已被禁用。
+        // 保留该函数以备未来核心支持时直接启用按钮。
         scanDirs.removeAll { $0 == url }
     }
 

@@ -56,13 +56,21 @@ private val placeholderSongs: List<Song> = listOf(
 fun LocalMusicScreen(player: PlayerManager = viewModel()) {
     var songs by remember { mutableStateOf(placeholderSongs) }
     var loaded by remember { mutableStateOf(false) }
+    // 7.5 加载失败时显示错误状态，而非静默回退占位数据。
+    var error by remember { mutableStateOf<String?>(null) }
     var filter by remember { mutableIntStateOf(0) }
     val filters = listOf("歌曲", "专辑", "艺术家", "文件夹")
 
-    // 首次进入：拉取本地音乐；失败回退占位。
+    // 首次进入：拉取本地音乐；失败置空并显示错误。
     LaunchedEffect(Unit) {
         val fetched = MusicRepository.listLocalSongs()
-        if (fetched != null) songs = fetched
+        if (fetched != null) {
+            songs = fetched
+        } else {
+            // 7.5 加载失败：置空列表，显示错误状态。
+            songs = emptyList()
+            error = "加载本地音乐失败，请检查核心连接后重试"
+        }
         loaded = true
     }
 
@@ -87,11 +95,14 @@ fun LocalMusicScreen(player: PlayerManager = viewModel()) {
         }
 
         Spacer(Modifier.height(NghDimensions.spacing4))
-        if (songs.isEmpty() && loaded) {
+        if (error != null) {
+            // 7.5 加载失败显示错误状态。
+            EmptyState("加载失败", error, icon = Icons.Filled.LibraryMusic)
+        } else if (songs.isEmpty() && loaded) {
             EmptyState("尚未扫描本地音乐", "前往设置添加目录", icon = Icons.Filled.LibraryMusic)
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(NghDimensions.spacing3)) {
-                itemsIndexed(songs) { i, song ->
+                itemsIndexed(songs, key = { _, item -> item.id }) { i, song ->
                     SongRowItem(
                         index = i + 1,
                         song = song,

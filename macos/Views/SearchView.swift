@@ -11,6 +11,8 @@ struct SearchView: View {
     @State private var result: SearchResult?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    /// 当前搜索任务句柄；发起新搜索前取消旧任务，避免旧结果覆盖新结果。
+    @State private var searchTask: Task<Void, Never>?
 
     private let pageSize: UInt32 = 20
 
@@ -212,18 +214,25 @@ struct SearchView: View {
     private func performSearch(reset: Bool) {
         let trimmed = keyword.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
+        // 取消上一次未完成的搜索任务，避免旧请求的结果覆盖新请求（竞态）。
+        searchTask?.cancel()
         if reset { page = 1 }
         isLoading = true
         errorMessage = nil
-        Task {
+        searchTask = Task {
             do {
                 let r = try await CoreService.shared.search(keyword: trimmed, page: page, pageSize: pageSize)
+                // 任务被取消（用户已发起新搜索）时丢弃过期结果
+                if Task.isCancelled { return }
                 await MainActor.run {
+                    guard !Task.isCancelled else { return }
                     self.result = r
                     self.isLoading = false
                 }
             } catch {
+                if Task.isCancelled { return }
                 await MainActor.run {
+                    guard !Task.isCancelled else { return }
                     self.errorMessage = (error as? MusicCoreError)?.description ?? error.localizedDescription
                     self.isLoading = false
                 }

@@ -23,7 +23,10 @@ final class PlayerManager: NSObject, ObservableObject {
     @Published var position: TimeInterval = 0   // 秒
     @Published var duration: TimeInterval = 0   // 秒
     @Published var isPlaying: Bool = false
-    @Published var volume: Float = 0.8
+    // IOS-006 修复：volume 变更需同步到 AVPlayer，否则调节音量无效果。
+    @Published var volume: Float = 0.8 {
+        didSet { player.volume = volume }
+    }
     @Published var mode: PlayMode = .sequential
 
     private let player = AVPlayer()
@@ -32,6 +35,15 @@ final class PlayerManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        // IOS-007 修复：配置 AVAudioSession 为 playback 类别并激活，
+        // 否则静音模式下无音频、锁屏可能暂停、与其他 App 音频冲突。
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            // 配置失败仅记录，不阻断播放器初始化
+            NSLog("AVAudioSession 配置失败：\(error)")
+        }
         // 周期性进度回调（每 0.5 秒）；[weak self] 避免强引用环（IOS-003）
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
@@ -65,9 +77,18 @@ final class PlayerManager: NSObject, ObservableObject {
         itemObserver = item.observe(\.status, options: [.new]) { [weak self] observedItem, _ in
             // [weak self] 避免强引用环（IOS-003）
             guard let self = self else { return }
-            if observedItem.status == .readyToPlay {
+            // IOS-008 修复：仅处理当前 currentItem 的回调，防止旧 item 的延迟
+            // 回调覆盖新 item 的状态（快速切歌时旧观察者可能晚于新 item 触发）。
+            guard self.player.currentItem === observedItem else { return }
+            switch observedItem.status {
+            case .readyToPlay:
                 let d = CMTimeGetSeconds(observedItem.duration)
                 if d.isFinite && !d.isNaN { self.duration = d }
+            case .failed:
+                // IOS-009 修复：加载失败时复位 isPlaying，避免「显示播放中但无音频」。
+                self.isPlaying = false
+            default:
+                break
             }
         }
         player.replaceCurrentItem(with: item)
@@ -86,8 +107,17 @@ final class PlayerManager: NSObject, ObservableObject {
             return
         }
         if !newQueue.isEmpty { queue = newQueue }
+        if let idx = queue.firstIndex(where: { $0.id == song.id }) {
+            currentIndex = idx
+        } else if newQueue.isEmpty {
+            // IOS-010 修复：newQueue 为空且 song 不在当前队列 → 单独播放该曲，
+            // 避免 currentIndex 落在无关歌曲上导致 toNext/toPrev 跳错。
+            queue = [song]
+            currentIndex = 0
+        } else {
+            currentIndex = 0
+        }
         currentSong = song
-        currentIndex = queue.firstIndex(where: { $0.id == song.id }) ?? 0
         play(url: url)
     }
 
@@ -132,7 +162,12 @@ final class PlayerManager: NSObject, ObservableObject {
         case .singleLoop:
             if let song = currentSong { play(song: song) }
         case .random:
-            currentIndex = Int.random(in: 0..<queue.count)
+            // IOS-011 修复：随机模式排除当前索引，避免重复播放同一首。
+            if queue.count > 1 {
+                var newIndex = Int.random(in: 0..<queue.count)
+                while newIndex == currentIndex { newIndex = Int.random(in: 0..<queue.count) }
+                currentIndex = newIndex
+            }
             play(song: queue[currentIndex])
         case .sequential:
             currentIndex = (currentIndex + 1) % queue.count

@@ -45,14 +45,25 @@ private val placeholderBoards: List<Leaderboard> = listOf(
 fun LeaderboardScreen(player: PlayerManager = viewModel()) {
     var boards by remember { mutableStateOf(placeholderBoards) }
     var loaded by remember { mutableStateOf(false) }
+    // 7.5 加载失败时显示错误状态，而非静默回退占位数据。
+    var error by remember { mutableStateOf<String?>(null) }
 
-    // 首次进入：取首个启用音源拉取榜单；失败回退占位。
+    // 首次进入：取首个启用音源拉取榜单；失败置空并显示错误。
     LaunchedEffect(Unit) {
         val sources = MusicRepository.listSourcesOrdered()
         val firstEnabled = sources.firstOrNull { it.enabled }
         if (firstEnabled != null) {
             val fetched = MusicRepository.getLeaderboards(firstEnabled.id)
-            if (fetched != null) boards = fetched
+            if (fetched != null) {
+                boards = fetched
+            } else {
+                // 7.5 加载失败：置空列表，显示错误状态。
+                boards = emptyList()
+                error = "加载排行榜失败，请检查音源连接后重试"
+            }
+        } else {
+            // 7.5 没有启用音源：置空，显示空状态而非占位。
+            boards = emptyList()
         }
         loaded = true
     }
@@ -71,7 +82,10 @@ fun LeaderboardScreen(player: PlayerManager = viewModel()) {
         )
         Spacer(Modifier.height(NghDimensions.spacing4))
 
-        if (boards.isEmpty() && loaded) {
+        if (error != null) {
+            // 7.5 加载失败显示错误状态。
+            EmptyState("加载失败", error)
+        } else if (boards.isEmpty() && loaded) {
             EmptyState("暂无排行榜", "请先在设置中导入并启用音源")
         } else {
             LazyVerticalGrid(

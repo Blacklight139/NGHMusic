@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::player_service::PlayerService;
 use crate::theme;
+use crate::utils::{format_artists, format_duration};
 use music_core::models::*;
 
 /// 收藏分组（本地持久化结构）。
@@ -235,19 +236,33 @@ pub fn create_favorites_page(player: Arc<PlayerService>) -> gtk4::Widget {
 }
 
 /// 刷新分组列表：清空并按 `state.groups` 重建，同步选中态。
+///
+/// 关键：必须先克隆所需数据并释放 `RefCell` 借用，再调用 `select_row`。
+/// 因为 `select_row` 会触发 `selected-rows-changed` 信号，其回调内会
+/// `state.borrow_mut()`，若此处仍持有 `state.borrow()` 会触发 RefCell
+/// 重入 panic。
 fn refresh_groups(state: &Rc<RefCell<FavoritesState>>, group_list: &gtk4::ListBox) {
     while let Some(child) = group_list.first_child() {
         group_list.remove(&child);
     }
-    let s = state.borrow();
-    for (idx, group) in s.groups.iter().enumerate() {
-        let row = create_group_row(&group.name, group.songs.len());
+    // 锁内克隆展示所需数据，立即释放借用
+    let (groups_view, selected): (Vec<(String, usize)>, usize) = {
+        let s = state.borrow();
+        (
+            s.groups
+                .iter()
+                .map(|g| (g.name.clone(), g.songs.len()))
+                .collect(),
+            s.selected,
+        )
+    };
+    for (name, count) in groups_view.iter() {
+        let row = create_group_row(name, *count);
         group_list.append(&row);
-        if idx == s.selected {
-            if let Some(r) = group_list.row_at_index(idx as i32) {
-                group_list.select_row(Some(&r));
-            }
-        }
+    }
+    // 借用已释放，安全调用 select_row（可能触发 selected-rows-changed）
+    if let Some(r) = group_list.row_at_index(selected as i32) {
+        group_list.select_row(Some(&r));
     }
 }
 
@@ -411,22 +426,4 @@ fn default_groups() -> Vec<FavoriteGroup> {
         name: "我喜欢的音乐".to_string(),
         songs: Vec::new(),
     }]
-}
-
-/// 格式化艺术家列表为「A / B / C」形式。
-fn format_artists(artists: &[String]) -> String {
-    artists.join(" / ")
-}
-
-/// 将毫秒时长格式化为 `mm:ss`。
-fn format_duration(duration_ms: Option<u64>) -> String {
-    match duration_ms {
-        Some(ms) => {
-            let total_secs = ms / 1000;
-            let mins = total_secs / 60;
-            let secs = total_secs % 60;
-            format!("{mins:02}:{secs:02}")
-        }
-        None => "--:--".to_string(),
-    }
 }
